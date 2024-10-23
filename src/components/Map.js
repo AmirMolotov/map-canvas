@@ -1,73 +1,31 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Rectangle,
-  Tooltip,
-  useMap,
-  Polygon,
-} from "react-leaflet";
+import { MapContainer, Tooltip, useMap, ImageOverlay } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { generateMockLocations } from "../mockData";
-import blockSvg from "../assets/block.svg";
+import blockLock from "../assets/block-lock.svg";
+import blockMine from "../assets/block-mine.png";
+import emptyImg from "../assets/empty.png";
 
-const cellSize = 100; // Size of each cell in pixels at zoom level 9
+const baseCellWidth = 400; // Smaller base width
+const baseCellHeight = 400; // Smaller base height
+const CELL_GAP = 0.01; // Almost no gap between cells
 const CENTER_ROW = 5;
 const CENTER_COL = 5;
 const MIN_GRID_DISTANCE = 2;
 
-const getMarkerColor = (type) => {
-  const markerColors = {
-    1: "#ff0000",
-    2: "#00ff00",
-    3: "#0000ff",
-  };
-  return markerColors[type] || "#000000";
-};
+// All cells are the same size now
+const getCellSizeMultiplier = () => 1.0;
 
-const createGridPattern = (zoom) => {
-  const size = zoom === 10 ? cellSize * 2 : cellSize;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = size;
-  canvas.height = size;
-
-  // Fill with transparent background
-  ctx.fillStyle = "transparent";
-  ctx.fillRect(0, 0, size, size);
-
-  const img = new Image();
-  img.src = blockSvg;
-
-  return new Promise((resolve) => {
-    img.onload = () => {
-      // Save the current context state
-      ctx.save();
-
-      // Move to center of canvas
-      ctx.translate(size / 2, size / 2);
-
-      // Rotate 45 degrees
-      ctx.rotate(Math.PI / 4);
-
-      // Calculate dimensions to fill the cell
-      const scale = Math.max(
-        (size / img.width) * 1.4,
-        (size / img.height) * 1.4
-      );
-      const width = img.width * scale;
-      const height = img.height * scale;
-
-      // Draw the image centered
-      ctx.drawImage(img, -width / 2, -height / 2, width, height);
-
-      // Restore the context state
-      ctx.restore();
-
-      resolve(canvas.toDataURL());
-    };
-  });
+const getImageSource = (type) => {
+  switch (type) {
+    case 1: // Red
+      return blockLock;
+    case 3: // Blue
+      return blockMine;
+    default:
+      return emptyImg;
+  }
 };
 
 // Convert map coordinates to grid indices
@@ -75,8 +33,8 @@ const mapCoordsToGridIndices = (map, latLng) => {
   try {
     const point = map.project(latLng, 9);
     return {
-      row: Math.floor(point.y / cellSize),
-      col: Math.floor(point.x / cellSize),
+      row: Math.floor(point.y / baseCellHeight),
+      col: Math.floor(point.x / baseCellWidth),
     };
   } catch (error) {
     console.error("Error converting coordinates:", error);
@@ -84,11 +42,11 @@ const mapCoordsToGridIndices = (map, latLng) => {
   }
 };
 
-// Convert grid indices to map coordinates
-const gridIndicesToMapCoords = (map, row, col) => {
+// Convert grid indices to map coordinates with size multiplier
+const gridIndicesToMapCoords = (map, row, col, multiplier = 1) => {
   try {
-    const pixelX = col * cellSize;
-    const pixelY = row * cellSize;
+    const pixelX = col * baseCellWidth;
+    const pixelY = row * baseCellHeight;
     return map.unproject([pixelX, pixelY], 9);
   } catch (error) {
     console.error("Error converting grid indices:", error);
@@ -101,7 +59,7 @@ const calculateGridDistance = (point1, point2) => {
   try {
     const rowDistance = Math.abs(point1.row - point2.row);
     const colDistance = Math.abs(point1.col - point2.col);
-    return Math.max(rowDistance, colDistance); // Using max for more conservative distance
+    return Math.max(rowDistance, colDistance);
   } catch (error) {
     console.error("Error calculating grid distance:", error);
     return Infinity;
@@ -115,12 +73,44 @@ const isSignificantMove = (point1, point2) => {
   try {
     const dx = point1.lat - point2.lat;
     const dy = point1.lng - point2.lng;
-    return Math.sqrt(dx * dx + dy * dy) > cellSize / 256;
+    return (
+      Math.sqrt(dx * dx + dy * dy) >
+      Math.min(baseCellWidth, baseCellHeight) / 256
+    );
   } catch (error) {
     console.error("Error checking movement:", error);
     return true;
   }
 };
+
+function GridCell({ row, col, image = emptyImg }) {
+  const map = useMap();
+  const sizeMultiplier = 1.0;
+
+  // Calculate base coordinates
+  const baseCoords = gridIndicesToMapCoords(map, row, col);
+  const nextCellCoords = gridIndicesToMapCoords(map, row + 1, col + 1);
+
+  // Calculate cell dimensions in lat/lng units
+  const cellLatSize = Math.abs(nextCellCoords.lat - baseCoords.lat);
+  const cellLngSize = Math.abs(nextCellCoords.lng - baseCoords.lng);
+
+  // Calculate adjusted size with gap
+  const adjustedLatSize = cellLatSize * sizeMultiplier * (1 - CELL_GAP);
+  const adjustedLngSize = cellLngSize * sizeMultiplier * (1 - CELL_GAP);
+
+  // Calculate center point
+  const centerLat = baseCoords.lat + cellLatSize / 2;
+  const centerLng = baseCoords.lng + cellLngSize / 2;
+
+  // Calculate bounds for the image
+  const bounds = [
+    [centerLat - adjustedLatSize / 2, centerLng - adjustedLngSize / 2],
+    [centerLat + adjustedLatSize / 2, centerLng + adjustedLngSize / 2],
+  ];
+
+  return <ImageOverlay bounds={bounds} url={image} opacity={1} />;
+}
 
 function BoundsHandler({ onBoundsChange }) {
   const map = useMap();
@@ -131,7 +121,6 @@ function BoundsHandler({ onBoundsChange }) {
       try {
         const center = map.getCenter();
 
-        // Only process if we've moved significantly
         if (isSignificantMove(center, lastProcessedCenter.current)) {
           const bounds = map.getBounds();
           const southWest = mapCoordsToGridIndices(map, bounds.getSouthWest());
@@ -156,7 +145,6 @@ function BoundsHandler({ onBoundsChange }) {
 
     map.on("drag", handleDrag);
     map.on("dragend", handleDrag);
-    // Process initial bounds
     handleDrag();
 
     return () => {
@@ -168,90 +156,18 @@ function BoundsHandler({ onBoundsChange }) {
   return null;
 }
 
-function GridLayer() {
-  const map = useMap();
-  const [zoom, setZoom] = useState(map.getZoom());
-  const [pattern, setPattern] = useState("");
-
-  useEffect(() => {
-    const updateZoom = () => {
-      setZoom(map.getZoom());
-      createGridPattern(map.getZoom()).then(setPattern);
-    };
-    map.on("zoomend", updateZoom);
-    createGridPattern(map.getZoom()).then(setPattern);
-    return () => {
-      map.off("zoomend", updateZoom);
-    };
-  }, [map]);
-
-  if (!pattern) return null;
-
-  return (
-    <TileLayer
-      url={pattern}
-      tileSize={zoom === 10 ? cellSize * 2 : cellSize}
-      className="grid-tile"
-    />
-  );
-}
-
-function DiamondMarker({ item }) {
-  const map = useMap();
-  const center = gridIndicesToMapCoords(
-    map,
-    item.latitude + 0.5,
-    item.longitude + 0.5
-  );
-  const top = gridIndicesToMapCoords(map, item.latitude, item.longitude + 0.5);
-  const right = gridIndicesToMapCoords(
-    map,
-    item.latitude + 0.5,
-    item.longitude + 1
-  );
-  const bottom = gridIndicesToMapCoords(
-    map,
-    item.latitude + 1,
-    item.longitude + 0.5
-  );
-  const left = gridIndicesToMapCoords(map, item.latitude + 0.5, item.longitude);
-
-  const positions = [
-    [top.lat, top.lng],
-    [right.lat, right.lng],
-    [bottom.lat, bottom.lng],
-    [left.lat, left.lng],
-  ];
-
-  return (
-    <Polygon
-      positions={positions}
-      pathOptions={{
-        color: getMarkerColor(item.type),
-        weight: 1,
-        fillOpacity: 0.5,
-      }}
-    >
-      <Tooltip permanent>
-        Cell: ({item.latitude}, {item.longitude})
-        <br />
-        Type: {item.type}
-      </Tooltip>
-    </Polygon>
-  );
-}
-
 export const Map = () => {
   const [items, setItems] = useState([]);
+  const [bounds, setBounds] = useState(null);
 
   const handleBoundsChange = (currentBounds) => {
     try {
+      setBounds(currentBounds);
       const currentCenter = {
         row: currentBounds.centerRow,
         col: currentBounds.centerCol,
       };
 
-      // Check distance from center to all existing items
       const minDistance =
         items.length > 0
           ? Math.min(
@@ -264,11 +180,9 @@ export const Map = () => {
             )
           : Infinity;
 
-      // If we're far enough from all existing items or there are no items
       if (minDistance >= MIN_GRID_DISTANCE) {
         console.log("Generating new items for bounds:", currentBounds);
 
-        // Generate new items
         const newItems = generateMockLocations(
           currentBounds.minRow,
           currentBounds.maxRow,
@@ -276,7 +190,6 @@ export const Map = () => {
           currentBounds.maxCol
         );
 
-        // Add new items, avoiding duplicates
         setItems((prevItems) => {
           const existingPositions = new Set(
             prevItems.map((item) => `${item.latitude},${item.longitude}`)
@@ -293,6 +206,19 @@ export const Map = () => {
     }
   };
 
+  // Generate grid cells for the current bounds
+  const gridCells = bounds
+    ? Array.from({ length: bounds.maxRow - bounds.minRow + 1 }, (_, rowIndex) =>
+        Array.from(
+          { length: bounds.maxCol - bounds.minCol + 1 },
+          (_, colIndex) => ({
+            row: bounds.minRow + rowIndex,
+            col: bounds.minCol + colIndex,
+          })
+        )
+      ).flat()
+    : [];
+
   return (
     <MapContainer
       center={[0, 0]}
@@ -301,14 +227,13 @@ export const Map = () => {
       minZoom={9}
       maxZoom={10}
       scrollWheelZoom={true}
-      style={{ height: "100vh", width: "100%" }}
+      style={{ height: "100vh", width: "100%", background: "black" }}
       whenCreated={(map) => {
         console.log("Map created");
         try {
-          // Set initial center to grid position (5,5)
           const centerCoords = gridIndicesToMapCoords(
             map,
-            CENTER_ROW + 0.5, // Center of the cell
+            CENTER_ROW + 0.5,
             CENTER_COL + 0.5
           );
           map.setView(centerCoords, 9);
@@ -318,11 +243,17 @@ export const Map = () => {
       }}
     >
       <BoundsHandler onBoundsChange={handleBoundsChange} />
-      <GridLayer />
+      {/* Render empty.png for all grid cells */}
+      {gridCells.map(({ row, col }) => (
+        <GridCell key={`grid-${row}-${col}`} row={row} col={col} />
+      ))}
+      {/* Render special cells (red/blue) on top */}
       {items.map((item, index) => (
-        <DiamondMarker
-          key={`${item.latitude},${item.longitude}-${index}`}
-          item={item}
+        <GridCell
+          key={`item-${item.latitude},${item.longitude}-${index}`}
+          row={item.latitude}
+          col={item.longitude}
+          image={getImageSource(item.type)}
         />
       ))}
     </MapContainer>
