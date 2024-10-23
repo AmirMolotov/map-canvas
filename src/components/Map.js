@@ -5,6 +5,7 @@ import {
   Rectangle,
   Tooltip,
   useMap,
+  Polygon,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -41,15 +42,29 @@ const createGridPattern = (zoom) => {
 
   return new Promise((resolve) => {
     img.onload = () => {
-      // Calculate dimensions to maintain aspect ratio
-      const scale = Math.min(size / img.width, size / img.height);
+      // Save the current context state
+      ctx.save();
+
+      // Move to center of canvas
+      ctx.translate(size / 2, size / 2);
+
+      // Rotate 45 degrees
+      ctx.rotate(Math.PI / 4);
+
+      // Calculate dimensions to fill the cell
+      const scale = Math.max(
+        (size / img.width) * 1.4,
+        (size / img.height) * 1.4
+      );
       const width = img.width * scale;
       const height = img.height * scale;
-      const x = (size - width) / 2;
-      const y = (size - height) / 2;
 
-      // Draw the image centered in the canvas
-      ctx.drawImage(img, x, y, width, height);
+      // Draw the image centered
+      ctx.drawImage(img, -width / 2, -height / 2, width, height);
+
+      // Restore the context state
+      ctx.restore();
+
       resolve(canvas.toDataURL());
     };
   });
@@ -181,18 +196,39 @@ function GridLayer() {
   );
 }
 
-function SquareMarker({ item }) {
+function DiamondMarker({ item }) {
   const map = useMap();
-  const sw = gridIndicesToMapCoords(map, item.latitude, item.longitude);
-  const ne = gridIndicesToMapCoords(map, item.latitude + 1, item.longitude + 1);
-  const bounds = [sw, ne];
+  const center = gridIndicesToMapCoords(
+    map,
+    item.latitude + 0.5,
+    item.longitude + 0.5
+  );
+  const top = gridIndicesToMapCoords(map, item.latitude, item.longitude + 0.5);
+  const right = gridIndicesToMapCoords(
+    map,
+    item.latitude + 0.5,
+    item.longitude + 1
+  );
+  const bottom = gridIndicesToMapCoords(
+    map,
+    item.latitude + 1,
+    item.longitude + 0.5
+  );
+  const left = gridIndicesToMapCoords(map, item.latitude + 0.5, item.longitude);
+
+  const positions = [
+    [top.lat, top.lng],
+    [right.lat, right.lng],
+    [bottom.lat, bottom.lng],
+    [left.lat, left.lng],
+  ];
 
   return (
-    <Rectangle
-      bounds={bounds}
+    <Polygon
+      positions={positions}
       pathOptions={{
         color: getMarkerColor(item.type),
-        weight: 2,
+        weight: 1,
         fillOpacity: 0.5,
       }}
     >
@@ -201,7 +237,7 @@ function SquareMarker({ item }) {
         <br />
         Type: {item.type}
       </Tooltip>
-    </Rectangle>
+    </Polygon>
   );
 }
 
@@ -284,7 +320,7 @@ export const Map = () => {
       <BoundsHandler onBoundsChange={handleBoundsChange} />
       <GridLayer />
       {items.map((item, index) => (
-        <SquareMarker
+        <DiamondMarker
           key={`${item.latitude},${item.longitude}-${index}`}
           item={item}
         />
