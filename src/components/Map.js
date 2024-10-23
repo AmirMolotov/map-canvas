@@ -9,6 +9,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { generateMockLocations } from "../mockData";
+import blockSvg from "../assets/block.svg";
 
 const cellSize = 100; // Size of each cell in pixels at zoom level 9
 const CENTER_ROW = 5;
@@ -26,23 +27,32 @@ const getMarkerColor = (type) => {
 
 const createGridPattern = (zoom) => {
   const size = zoom === 10 ? cellSize * 2 : cellSize;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", size);
-  svg.setAttribute("height", size);
-  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = size;
+  canvas.height = size;
 
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  rect.setAttribute("width", "100%");
-  rect.setAttribute("height", "100%");
-  rect.setAttribute("fill", "none");
-  rect.setAttribute("stroke", "black");
-  rect.setAttribute("stroke-width", "1");
+  // Fill with transparent background
+  ctx.fillStyle = "transparent";
+  ctx.fillRect(0, 0, size, size);
 
-  svg.appendChild(rect);
+  const img = new Image();
+  img.src = blockSvg;
 
-  return `data:image/svg+xml;base64,${btoa(
-    new XMLSerializer().serializeToString(svg)
-  )}`;
+  return new Promise((resolve) => {
+    img.onload = () => {
+      // Calculate dimensions to maintain aspect ratio
+      const scale = Math.min(size / img.width, size / img.height);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      const x = (size - width) / 2;
+      const y = (size - height) / 2;
+
+      // Draw the image centered in the canvas
+      ctx.drawImage(img, x, y, width, height);
+      resolve(canvas.toDataURL());
+    };
+  });
 };
 
 // Convert map coordinates to grid indices
@@ -146,21 +156,27 @@ function BoundsHandler({ onBoundsChange }) {
 function GridLayer() {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
+  const [pattern, setPattern] = useState("");
 
   useEffect(() => {
     const updateZoom = () => {
       setZoom(map.getZoom());
+      createGridPattern(map.getZoom()).then(setPattern);
     };
     map.on("zoomend", updateZoom);
+    createGridPattern(map.getZoom()).then(setPattern);
     return () => {
       map.off("zoomend", updateZoom);
     };
   }, [map]);
 
+  if (!pattern) return null;
+
   return (
     <TileLayer
-      url={createGridPattern(zoom)}
+      url={pattern}
       tileSize={zoom === 10 ? cellSize * 2 : cellSize}
+      className="grid-tile"
     />
   );
 }
