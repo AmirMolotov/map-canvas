@@ -5,11 +5,12 @@ import "leaflet/dist/leaflet.css";
 import { generateMockLocations } from "../mockData";
 import blockLock from "../assets/block-lock.svg";
 import blockMine from "../assets/block-mine.png";
-import emptyImg from "../assets/empty.png";
+import emptyImg from "../assets/no-prespective.svg";
+import { Isometric, IsometricContainer, IsometricPlane } from "isometric-react";
 
 const baseCellWidth = 400; // Smaller base width
-const baseCellHeight = 400; // Smaller base height
-const CELL_GAP = 0.01; // Almost no gap between cells
+const baseCellHeight = 300; // Smaller base height
+const CELL_GAP = 0.0; // Almost no gap between cells
 const CENTER_ROW = 5;
 const CENTER_COL = 5;
 const MIN_GRID_DISTANCE = 2;
@@ -86,6 +87,7 @@ const isSignificantMove = (point1, point2) => {
 function GridCell({ row, col, image = emptyImg }) {
   const map = useMap();
   const sizeMultiplier = 1.0;
+  console.log(row, col);
 
   // Calculate base coordinates
   const baseCoords = gridIndicesToMapCoords(map, row, col);
@@ -108,8 +110,29 @@ function GridCell({ row, col, image = emptyImg }) {
     [centerLat - adjustedLatSize / 2, centerLng - adjustedLngSize / 2],
     [centerLat + adjustedLatSize / 2, centerLng + adjustedLngSize / 2],
   ];
+  console.log(row, col);
 
-  return <ImageOverlay bounds={bounds} url={image} opacity={1} />;
+  return (
+    <Isometric>
+      <IsometricPlane
+        position={{
+          top: 10 * row,
+          left: 10 * col,
+        }}
+        color="white"
+        width={10}
+        height={10}
+      >
+        <img width={"100%"} height={"100%"} src={emptyImg} />
+        {/* <ImageOverlay
+          className="overlay_custom"
+          bounds={bounds}
+          url={image}
+          opacity={1}
+        /> */}
+      </IsometricPlane>
+    </Isometric>
+  );
 }
 
 function BoundsHandler({ onBoundsChange }) {
@@ -208,14 +231,16 @@ export const Map = () => {
 
   // Generate grid cells for the current bounds
   const gridCells = bounds
-    ? Array.from({ length: bounds.maxRow - bounds.minRow + 1 }, (_, rowIndex) =>
-        Array.from(
-          { length: bounds.maxCol - bounds.minCol + 1 },
-          (_, colIndex) => ({
-            row: bounds.minRow + rowIndex,
-            col: bounds.minCol + colIndex,
-          })
-        )
+    ? Array.from(
+        { length: Math.abs(bounds.maxRow - bounds.minRow) + 1 },
+        (_, rowIndex) =>
+          Array.from(
+            { length: Math.abs(bounds.maxCol - bounds.minCol) + 1 },
+            (_, colIndex) => ({
+              row: bounds.minRow + rowIndex,
+              col: bounds.minCol + colIndex,
+            })
+          )
       ).flat()
     : [];
 
@@ -244,18 +269,21 @@ export const Map = () => {
     >
       <BoundsHandler onBoundsChange={handleBoundsChange} />
       {/* Render empty.png for all grid cells */}
-      {gridCells.map(({ row, col }) => (
-        <GridCell key={`grid-${row}-${col}`} row={row} col={col} />
-      ))}
+
+      <IsometricContainer>
+        {gridCells.map(({ row, col }) => (
+          <GridCell key={`grid-${row}-${col}`} row={row} col={col} />
+        ))}
+      </IsometricContainer>
       {/* Render special cells (red/blue) on top */}
-      {items.map((item, index) => (
+      {/* {items.map((item, index) => (
         <GridCell
           key={`item-${item.latitude},${item.longitude}-${index}`}
           row={item.latitude}
           col={item.longitude}
           image={getImageSource(item.type)}
         />
-      ))}
+      ))} */}
     </MapContainer>
   );
 };
