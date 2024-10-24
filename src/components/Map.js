@@ -2,17 +2,31 @@ import React, { useState } from "react";
 import { useGesture } from "@use-gesture/react";
 import { Isometric, IsometricContainer, IsometricPlane } from "isometric-react";
 import emptyImg from "../assets/no-prespective.svg";
+import blockMine from "../assets/ton-block.png";
+import blockLock from "../assets/block-lock.svg";
 
 const GRID_SIZE = 10;
 const INITIAL_ZOOM = 1;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 
+// Function to determine which image to use for a cell
+const getCellImage = (row, col) => {
+  // Special positions for 3D models
+  if (row === 0 && col === 0) return blockMine;
+  if (row === 2 && col === 2) return blockLock;
+  return emptyImg;
+};
+
+// Function to determine if a cell contains an already isometric image
+const isIsometricImage = (row, col) => {
+  return (row === 0 && col === 0) || (row === 2 && col === 2);
+};
+
 export const Map = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
 
-  // Handle both drag and wheel events
   const bind = useGesture({
     onDrag: ({ movement: [mx, my], first, memo }) => {
       if (first) return [position.x, position.y];
@@ -32,7 +46,7 @@ export const Map = () => {
 
   // Generate grid cells
   const gridCells = [];
-  const gridRange = 5; // Number of cells in each direction from center
+  const gridRange = 5;
 
   for (let row = -gridRange; row <= gridRange; row++) {
     for (let col = -gridRange; col <= gridRange; col++) {
@@ -64,6 +78,7 @@ export const Map = () => {
         <IsometricContainer>
           {gridCells.map(({ row, col }) => (
             <Isometric key={`${row}-${col}`}>
+              {/* Base plane */}
               <IsometricPlane
                 position={{
                   top: GRID_SIZE * row,
@@ -71,14 +86,20 @@ export const Map = () => {
                 }}
                 width={GRID_SIZE}
                 height={GRID_SIZE}
-                color="white"
+                color="#231f20"
               >
                 <img
                   width="100%"
                   height="100%"
-                  src={emptyImg}
+                  src={getCellImage(row, col)}
                   alt={`Cell ${row}-${col}`}
-                  style={{ pointerEvents: "none" }}
+                  style={{
+                    pointerEvents: "none",
+                    ...(isIsometricImage(row, col) && {
+                      transform:
+                        "rotateZ(-45deg) rotateY(0deg) rotateX(0deg) scale(1.0)",
+                    }),
+                  }}
                 />
               </IsometricPlane>
             </Isometric>
