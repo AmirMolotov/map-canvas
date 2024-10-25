@@ -71,7 +71,7 @@ export const Map = () => {
 
   // Generate mock locations once using useMemo with narrower boundaries
   const mockLocations = useMemo(() => {
-    return generateMockLocations(-1, 1, -1, 1);
+    return generateMockLocations(-1, 2, -1, 2);
   }, []);
 
   const bind = useGesture({
@@ -91,12 +91,10 @@ export const Map = () => {
     },
   });
 
-  // Generate grid cells with smaller range
+  // Generate grid cells for 4x4 grid
   const gridCells = [];
-  const gridRange = 2;
-
-  for (let row = -gridRange; row <= gridRange; row++) {
-    for (let col = -gridRange; col <= gridRange; col++) {
+  for (let row = -1; row <= 2; row++) {
+    for (let col = -1; col <= 2; col++) {
       gridCells.push({ row, col });
     }
   }
@@ -105,10 +103,15 @@ export const Map = () => {
     <div
       style={{
         width: "100%",
-        height: "100vh",
+        height: "100%",
         overflow: "hidden",
         background: "black",
         cursor: "grab",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
       }}
       {...bind()}
     >
