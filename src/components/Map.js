@@ -65,14 +65,48 @@ const getCellStyles = (cellType) => {
   }
 };
 
+const NavigationButton = ({ onClick, style, children }) => (
+  <button
+    onClick={onClick}
+    style={{
+      position: "absolute",
+      padding: "10px 20px",
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      border: "2px solid rgba(255, 255, 255, 0.4)",
+      color: "white",
+      cursor: "pointer",
+      zIndex: 1000,
+      borderRadius: "5px",
+      ...style,
+    }}
+  >
+    {children}
+  </button>
+);
+
 export const Map = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
+  const [boundaries, setBoundaries] = useState({
+    minRow: -1,
+    maxRow: 2,
+    minCol: -1,
+    maxCol: 2,
+  });
+  const [allLocations, setAllLocations] = useState(() =>
+    generateMockLocations(-1, 2, -1, 2)
+  );
 
-  // Generate mock locations once using useMemo with narrower boundaries
-  const mockLocations = useMemo(() => {
-    return generateMockLocations(-1, 2, -1, 2);
-  }, []);
+  // Memoize grid cells generation based on current boundaries
+  const gridCells = useMemo(() => {
+    const cells = [];
+    for (let row = boundaries.minRow; row <= boundaries.maxRow; row++) {
+      for (let col = boundaries.minCol; col <= boundaries.maxCol; col++) {
+        cells.push({ row, col });
+      }
+    }
+    return cells;
+  }, [boundaries]);
 
   const bind = useGesture({
     onDrag: ({ movement: [mx, my], first, memo }) => {
@@ -91,13 +125,56 @@ export const Map = () => {
     },
   });
 
-  // Generate grid cells for 4x4 grid
-  const gridCells = [];
-  for (let row = -1; row <= 2; row++) {
-    for (let col = -1; col <= 2; col++) {
-      gridCells.push({ row, col });
+  const expandGrid = (direction) => {
+    let newBoundaries = { ...boundaries };
+    let newLocations;
+
+    switch (direction) {
+      case "up":
+        newBoundaries.minRow -= 3;
+        newLocations = generateMockLocations(
+          newBoundaries.minRow,
+          newBoundaries.minRow + 2,
+          boundaries.minCol,
+          boundaries.maxCol
+        );
+        setPosition((prev) => ({ ...prev, y: prev.y + 300 }));
+        break;
+      case "down":
+        newBoundaries.maxRow += 3;
+        newLocations = generateMockLocations(
+          newBoundaries.maxRow - 2,
+          newBoundaries.maxRow,
+          boundaries.minCol,
+          boundaries.maxCol
+        );
+        setPosition((prev) => ({ ...prev, y: prev.y - 300 }));
+        break;
+      case "left":
+        newBoundaries.minCol -= 3;
+        newLocations = generateMockLocations(
+          boundaries.minRow,
+          boundaries.maxRow,
+          newBoundaries.minCol,
+          newBoundaries.minCol + 2
+        );
+        setPosition((prev) => ({ ...prev, x: prev.x + 300 }));
+        break;
+      case "right":
+        newBoundaries.maxCol += 3;
+        newLocations = generateMockLocations(
+          boundaries.minRow,
+          boundaries.maxRow,
+          newBoundaries.maxCol - 2,
+          newBoundaries.maxCol
+        );
+        setPosition((prev) => ({ ...prev, x: prev.x - 300 }));
+        break;
     }
-  }
+
+    setBoundaries(newBoundaries);
+    setAllLocations((prev) => [...prev, ...newLocations]);
+  };
 
   return (
     <div
@@ -115,6 +192,30 @@ export const Map = () => {
       }}
       {...bind()}
     >
+      <NavigationButton
+        onClick={() => expandGrid("up")}
+        style={{ top: "20px", left: "50%", transform: "translateX(-50%)" }}
+      >
+        ↑
+      </NavigationButton>
+      <NavigationButton
+        onClick={() => expandGrid("down")}
+        style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}
+      >
+        ↓
+      </NavigationButton>
+      <NavigationButton
+        onClick={() => expandGrid("left")}
+        style={{ left: "20px", top: "50%", transform: "translateY(-50%)" }}
+      >
+        ←
+      </NavigationButton>
+      <NavigationButton
+        onClick={() => expandGrid("right")}
+        style={{ right: "20px", top: "50%", transform: "translateY(-50%)" }}
+      >
+        →
+      </NavigationButton>
       <div
         style={{
           transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
@@ -127,8 +228,8 @@ export const Map = () => {
       >
         <IsometricContainer>
           {gridCells.map(({ row, col }) => {
-            const cellType = getCellType(row, col, mockLocations);
-            const location = mockLocations.find(
+            const cellType = getCellType(row, col, allLocations);
+            const location = allLocations.find(
               (loc) => loc.latitude === row && loc.longitude === col
             );
             return (
