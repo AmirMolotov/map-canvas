@@ -1,28 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useGesture } from "@use-gesture/react";
 import { Isometric, IsometricContainer, IsometricPlane } from "isometric-react";
 import emptyImg from "../assets/empty-block.svg";
 import blockMine from "../assets/ton-block.png";
 import blockLock from "../assets/lock-block.png";
+import { generateMockLocations } from "../mockData";
 
 const GRID_SIZE = 10;
 const INITIAL_ZOOM = 1;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 
-// Function to determine which image to use for a cell
-const getCellImage = (row, col) => {
-  // Special positions for 3D models
-  if (row === 0 && col === 0) return blockMine;
-  if (row === 2 && col === 2) return blockLock;
-  return emptyImg;
+// Function to determine which image to use based on type
+const getImageByType = (type) => {
+  switch (type) {
+    case 1:
+      return blockMine;
+    case 2:
+      return blockLock;
+    default:
+      return emptyImg;
+  }
 };
 
-// Function to determine cell type
-const getCellType = (row, col) => {
-  if (row === 0 && col === 0) return "mine";
-  if (row === 2 && col === 2) return "lock";
-  return "empty";
+// Function to determine cell type based on location data
+const getCellType = (row, col, locations) => {
+  const location = locations.find(
+    (loc) => loc.latitude === row && loc.longitude === col
+  );
+  if (!location) return "empty";
+
+  switch (location.type) {
+    case 1:
+      return "mine";
+    case 2:
+      return "lock";
+    default:
+      return "empty";
+  }
 };
 
 // Function to get cell-specific styles
@@ -54,6 +69,11 @@ export const Map = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
 
+  // Generate mock locations once using useMemo with narrower boundaries
+  const mockLocations = useMemo(() => {
+    return generateMockLocations(-1, 1, -1, 1);
+  }, []);
+
   const bind = useGesture({
     onDrag: ({ movement: [mx, my], first, memo }) => {
       if (first) return [position.x, position.y];
@@ -71,9 +91,9 @@ export const Map = () => {
     },
   });
 
-  // Generate grid cells
+  // Generate grid cells with smaller range
   const gridCells = [];
-  const gridRange = 5;
+  const gridRange = 2;
 
   for (let row = -gridRange; row <= gridRange; row++) {
     for (let col = -gridRange; col <= gridRange; col++) {
@@ -104,7 +124,10 @@ export const Map = () => {
       >
         <IsometricContainer>
           {gridCells.map(({ row, col }) => {
-            const cellType = getCellType(row, col);
+            const cellType = getCellType(row, col, mockLocations);
+            const location = mockLocations.find(
+              (loc) => loc.latitude === row && loc.longitude === col
+            );
             return (
               <Isometric key={`${row}-${col}`}>
                 <IsometricPlane
@@ -119,7 +142,7 @@ export const Map = () => {
                   <img
                     width="100%"
                     height="100%"
-                    src={getCellImage(row, col)}
+                    src={location ? getImageByType(location.type) : emptyImg}
                     alt={`Cell ${row}-${col}`}
                     style={{
                       pointerEvents: "none",
