@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useGesture } from "@use-gesture/react";
 import { Isometric, IsometricContainer, IsometricPlane } from "isometric-react";
-import emptyImg from "../assets/no-prespective.svg";
+import emptyImg from "../assets/empty-block.svg";
 import blockMine from "../assets/ton-block.png";
-import blockLock from "../assets/block-lock.svg";
+import blockLock from "../assets/lock-block.png";
 
 const GRID_SIZE = 10;
 const INITIAL_ZOOM = 1;
@@ -18,9 +18,36 @@ const getCellImage = (row, col) => {
   return emptyImg;
 };
 
-// Function to determine if a cell contains an already isometric image
-const isIsometricImage = (row, col) => {
-  return (row === 0 && col === 0) || (row === 2 && col === 2);
+// Function to determine cell type
+const getCellType = (row, col) => {
+  if (row === 0 && col === 0) return "mine";
+  if (row === 2 && col === 2) return "lock";
+  return "empty";
+};
+
+// Function to get cell-specific styles
+const getCellStyles = (cellType) => {
+  switch (cellType) {
+    case "mine":
+      return {
+        transform:
+          "rotateZ(-45deg) rotateY(0deg) rotateX(0deg) translate(24px, -44px) scale(1.25)",
+        height: "232px",
+        filter: "brightness(1.2)",
+      };
+    case "lock":
+      return {
+        transform:
+          "rotateZ(-45deg) rotateY(0deg) rotateX(0deg) translate(8px, -7px) scale(1.15)",
+        height: "180px",
+        filter: "brightness(0.9)",
+      };
+    default:
+      return {
+        width: "100%",
+        height: "100%",
+      };
+  }
 };
 
 export const Map = () => {
@@ -76,34 +103,33 @@ export const Map = () => {
         }}
       >
         <IsometricContainer>
-          {gridCells.map(({ row, col }) => (
-            <Isometric key={`${row}-${col}`}>
-              {/* Base plane */}
-              <IsometricPlane
-                position={{
-                  top: GRID_SIZE * row,
-                  left: GRID_SIZE * col,
-                }}
-                width={GRID_SIZE}
-                height={GRID_SIZE}
-                color="#231f20"
-              >
-                <img
-                  width="100%"
-                  height="100%"
-                  src={getCellImage(row, col)}
-                  alt={`Cell ${row}-${col}`}
-                  style={{
-                    pointerEvents: "none",
-                    ...(isIsometricImage(row, col) && {
-                      transform:
-                        "rotateZ(-45deg) rotateY(0deg) rotateX(0deg) scale(1.0)",
-                    }),
+          {gridCells.map(({ row, col }) => {
+            const cellType = getCellType(row, col);
+            return (
+              <Isometric key={`${row}-${col}`}>
+                <IsometricPlane
+                  position={{
+                    top: GRID_SIZE * row,
+                    left: GRID_SIZE * col,
                   }}
-                />
-              </IsometricPlane>
-            </Isometric>
-          ))}
+                  width={GRID_SIZE}
+                  height={GRID_SIZE}
+                  color="#231f20"
+                >
+                  <img
+                    width="100%"
+                    height="100%"
+                    src={getCellImage(row, col)}
+                    alt={`Cell ${row}-${col}`}
+                    style={{
+                      pointerEvents: "none",
+                      ...getCellStyles(cellType),
+                    }}
+                  />
+                </IsometricPlane>
+              </Isometric>
+            );
+          })}
         </IsometricContainer>
       </div>
     </div>
