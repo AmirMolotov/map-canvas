@@ -1,18 +1,20 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { generateMockLocations } from "../mockData";
 import emptyBlockImage from "../assets/empty-block.png";
+import tonBlockImage from "../assets/ton-block-lines.png"; // This appears to be the ton block lines image
+import lockBlockImage from "../assets/block-lock.svg";
 
 const MapCanvas = () => {
   const canvasRef = useRef(null);
-  const imageRef = useRef(null);
-  // Fixed scale of 10
-  const scale = 10;
-  // Set initial position to (0,-200)
+  const emptyImageRef = useRef(null);
+  const tonImageRef = useRef(null);
+  const lockImageRef = useRef(null);
+  const [scale, setScale] = useState(10);
   const [offset, setOffset] = useState({ x: 0, y: -200 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const tempOffsetRef = useRef({ x: 0, y: -200 });
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(0);
 
   // Generate points once and store them, mapping them to our 100x100 grid
   const points = useRef(
@@ -23,27 +25,42 @@ const MapCanvas = () => {
     }))
   );
 
-  // Load the empty block image
+  // Load all images
   useEffect(() => {
-    const img = new Image();
-    img.src = emptyBlockImage;
-    img.onload = () => {
-      imageRef.current = img;
-      setImageLoaded(true);
+    const loadImage = (src) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        // For SVGs, we want to ensure they maintain their crisp edges
+        if (src.endsWith(".svg")) {
+          img.style.imageRendering = "optimizeQuality";
+        }
+        img.onload = () => resolve(img);
+      });
     };
+
+    Promise.all([
+      loadImage(emptyBlockImage),
+      loadImage(tonBlockImage),
+      loadImage(lockBlockImage),
+    ]).then(([emptyImg, tonImg, lockImg]) => {
+      emptyImageRef.current = emptyImg;
+      tonImageRef.current = tonImg;
+      lockImageRef.current = lockImg;
+      setImagesLoaded(3);
+    });
   }, []);
 
-  // Color mapping for different point types
-  const getPointColor = (type) => {
+  // Get the appropriate image for a point type
+  const getPointImage = (type) => {
     switch (type) {
       case "A":
-        return "#ff0000"; // Red
       case "B":
-        return "#00ff00"; // Green
+        return tonImageRef.current;
       case "C":
-        return "#0000ff"; // Blue
+        return lockImageRef.current;
       default:
-        return "#f0f0f0"; // Default light gray
+        return emptyImageRef.current;
     }
   };
 
@@ -59,9 +76,13 @@ const MapCanvas = () => {
 
   // Draw the isometric grid
   const drawGrid = useCallback(() => {
-    if (!canvasRef.current || !imageRef.current || !imageLoaded) return;
+    if (!canvasRef.current || imagesLoaded < 3) return;
 
     const ctx = canvasRef.current.getContext("2d");
+    // Enable image smoothing for better quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
     const currentOffset = isDragging ? tempOffsetRef.current : offset;
@@ -92,44 +113,30 @@ const MapCanvas = () => {
           screenY > -tileHeight &&
           screenY < canvasRef.current.height + tileHeight
         ) {
+          // Save the current context state
+          ctx.save();
+
+          // Move to the center of where we want to draw
+          ctx.translate(screenX, screenY);
+
           const pointType = pointMap.get(`${x},${y}`);
+          const image = getPointImage(pointType);
 
-          if (pointType) {
-            // Draw colored tile for points
-            ctx.beginPath();
-            ctx.moveTo(screenX, screenY - tileHeight / 2);
-            ctx.lineTo(screenX + tileWidth / 2, screenY);
-            ctx.lineTo(screenX, screenY + tileHeight / 2);
-            ctx.lineTo(screenX - tileWidth / 2, screenY);
-            ctx.closePath();
-            ctx.fillStyle = getPointColor(pointType);
-            ctx.fill();
-            ctx.strokeStyle = "#ccc";
-            ctx.stroke();
-          } else {
-            // Save the current context state
-            ctx.save();
+          // Draw the appropriate image for the cell
+          ctx.drawImage(
+            image,
+            -tileWidth / 2, // Center the image horizontally
+            -tileHeight / 2, // Center the image vertically
+            tileWidth, // Match the tile width
+            tileHeight // Match the tile height
+          );
 
-            // Move to the center of where we want to draw
-            ctx.translate(screenX, screenY);
-
-            // Draw empty block image for empty cells
-            // The image is drawn centered on the tile position
-            ctx.drawImage(
-              imageRef.current,
-              -tileWidth / 2, // Center the image horizontally
-              -tileHeight / 2, // Center the image vertically
-              tileWidth, // Match the tile width
-              tileHeight // Match the tile height
-            );
-
-            // Restore the context state
-            ctx.restore();
-          }
+          // Restore the context state
+          ctx.restore();
         }
       }
     }
-  }, [offset, isDragging, isoToScreen, imageLoaded]);
+  }, [scale, offset, isDragging, isoToScreen, imagesLoaded]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -182,6 +189,37 @@ const MapCanvas = () => {
     }
   }, [isDragging]);
 
+  // Handle zooming
+  const handleWheel = useCallback(
+    (e) => {
+      e.preventDefault();
+
+      // Calculate zoom center (mouse position)
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Calculate zoom factor
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20); // Limit scale between 1 and 20
+
+      // Adjust offset to zoom towards mouse position
+      const scaleDiff = newScale - scale;
+      const newOffset = {
+        x:
+          offset.x -
+          (mouseX - canvasRef.current.width / 2) * (scaleDiff / scale),
+        y:
+          offset.y -
+          (mouseY - canvasRef.current.height / 2) * (scaleDiff / scale),
+      };
+
+      setScale(newScale);
+      setOffset(newOffset);
+    },
+    [scale, offset]
+  );
+
   return (
     <canvas
       ref={canvasRef}
@@ -193,6 +231,7 @@ const MapCanvas = () => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
     />
   );
 };
