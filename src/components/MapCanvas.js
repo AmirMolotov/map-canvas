@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { generateMockLocations } from "../mockData";
 import emptyBlockImage from "../assets/empty-block.png";
-import tonBlockImage from "../assets/ton-block-lines.png"; // This appears to be the ton block lines image
+import tonBlockImage from "../assets/ton-block-lines.png";
 import lockBlockImage from "../assets/block-lock.svg";
 
 const MapCanvas = () => {
@@ -83,7 +83,9 @@ const MapCanvas = () => {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    // Fill the canvas with black background
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
     const currentOffset = isDragging ? tempOffsetRef.current : offset;
 
@@ -194,24 +196,17 @@ const MapCanvas = () => {
     (e) => {
       e.preventDefault();
 
-      // Calculate zoom center (mouse position)
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
       // Calculate zoom factor
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
       const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20); // Limit scale between 1 and 20
 
-      // Adjust offset to zoom towards mouse position
-      const scaleDiff = newScale - scale;
+      // Calculate the scale change
+      const scaleDiff = newScale / scale;
+
+      // Calculate new offset to maintain the center point
       const newOffset = {
-        x:
-          offset.x -
-          (mouseX - canvasRef.current.width / 2) * (scaleDiff / scale),
-        y:
-          offset.y -
-          (mouseY - canvasRef.current.height / 2) * (scaleDiff / scale),
+        x: offset.x * scaleDiff,
+        y: offset.y * scaleDiff,
       };
 
       setScale(newScale);
@@ -226,6 +221,8 @@ const MapCanvas = () => {
       style={{
         cursor: isDragging ? "grabbing" : "grab",
         touchAction: "none",
+        backgroundColor: "#000000", // Set black background in CSS as well
+        display: "block", // Prevent any unwanted margins
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
