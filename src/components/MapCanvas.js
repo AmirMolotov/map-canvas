@@ -17,11 +17,14 @@ const MapCanvas = () => {
   const tempOffsetRef = useRef(initialOffset);
   const [imagesLoaded, setImagesLoaded] = useState(0);
   const [hoveredCell, setHoveredCell] = useState(null);
+  const [isLoadingChunk, setIsLoadingChunk] = useState(false);
 
   // Track loaded chunks (10x10 areas)
   const loadedChunks = useRef(new Set());
   // Store all points
   const points = useRef([]);
+  // Track chunks being loaded
+  const loadingChunks = useRef(new Set());
 
   // Convert screen coordinates to isometric grid coordinates
   const screenToIso = useCallback(
@@ -51,34 +54,53 @@ const MapCanvas = () => {
 
   // Load data for a specific chunk
   const loadChunkData = useCallback(
-    (chunkX, chunkY) => {
+    async (chunkX, chunkY) => {
       const chunkKey = getChunkKey(chunkX, chunkY);
 
-      // Skip if chunk already loaded
-      if (loadedChunks.current.has(chunkKey)) {
+      // Skip if chunk already loaded or is currently loading
+      if (
+        loadedChunks.current.has(chunkKey) ||
+        loadingChunks.current.has(chunkKey)
+      ) {
         return;
       }
 
-      // Calculate grid coordinates for this chunk
-      const startX = chunkX * 10;
-      const startY = chunkY * 10;
-      const endX = startX + 9;
-      const endY = startY + 9;
+      // Mark chunk as being loaded
+      loadingChunks.current.add(chunkKey);
+      setIsLoadingChunk(true);
 
-      // Generate new data for this chunk
-      const newPoints = generateMockLocations(startX, endX, startY, endY).map(
-        (loc) => ({
+      try {
+        // Calculate grid coordinates for this chunk
+        const startX = chunkX * 10;
+        const startY = chunkY * 10;
+        const endX = startX + 9;
+        const endY = startY + 9;
+
+        // Generate new data for this chunk
+        const newPoints = await generateMockLocations(
+          startX,
+          endX,
+          startY,
+          endY
+        );
+        const mappedPoints = newPoints.map((loc) => ({
           x: loc.latitude,
           y: loc.longitude,
           type: loc.type === 1 ? "A" : loc.type === 2 ? "B" : "C",
-        })
-      );
+        }));
 
-      // Append new points
-      points.current = [...points.current, ...newPoints];
+        // Append new points
+        points.current = [...points.current, ...mappedPoints];
 
-      // Mark chunk as loaded
-      loadedChunks.current.add(chunkKey);
+        // Mark chunk as loaded
+        loadedChunks.current.add(chunkKey);
+      } finally {
+        // Remove chunk from loading set
+        loadingChunks.current.delete(chunkKey);
+        if (loadingChunks.current.size === 0) {
+          setIsLoadingChunk(false);
+        }
+      }
     },
     [getChunkKey]
   );
@@ -260,12 +282,14 @@ const MapCanvas = () => {
       ctx.restore();
     }
 
-    // Draw loaded chunks info
+    // Draw loaded chunks info and loading indicator
     ctx.save();
     ctx.fillStyle = "white";
     ctx.font = "14px Arial";
     ctx.fillText(
-      `Loaded chunks: ${loadedChunks.current.size}, Visible chunks: ${visibleChunks.length}`,
+      `Loaded chunks: ${loadedChunks.current.size}, Visible chunks: ${
+        visibleChunks.length
+      }${isLoadingChunk ? " (Loading...)" : ""}`,
       10,
       60
     );
@@ -280,6 +304,7 @@ const MapCanvas = () => {
     checkAndLoadChunks,
     getVisibleChunks,
     getChunkKey,
+    isLoadingChunk,
   ]);
 
   useEffect(() => {

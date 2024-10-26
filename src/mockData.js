@@ -11,9 +11,17 @@ const getRandomType = () => Math.floor(Math.random() * 3) + 1;
  * @param {number} latMax - Maximum latitude
  * @param {number} longMin - Minimum longitude
  * @param {number} longMax - Maximum longitude
- * @returns {Array} Array of 20 location objects with integer coordinates
+ * @returns {Promise<Array>} Promise that resolves to array of location objects with integer coordinates
  */
-export const generateMockLocations = (latMin, latMax, longMin, longMax) => {
+export const generateMockLocations = async (
+  latMin,
+  latMax,
+  longMin,
+  longMax
+) => {
+  // Add 1 second delay
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   const locations = [];
 
   for (let i = 0; i < 100; i++) {
