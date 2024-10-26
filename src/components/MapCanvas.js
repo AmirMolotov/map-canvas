@@ -9,7 +9,7 @@ const MapCanvas = () => {
   const emptyImageRef = useRef(null);
   const tonImageRef = useRef(null);
   const lockImageRef = useRef(null);
-  const [scale, setScale] = useState(10);
+  const [scale, setScale] = useState(8);
   const initialOffset = { x: 0, y: -1500 * 10 };
   const [offset, setOffset] = useState(initialOffset);
   const [isDragging, setIsDragging] = useState(false);
@@ -18,6 +18,8 @@ const MapCanvas = () => {
   const [imagesLoaded, setImagesLoaded] = useState(0);
   const [hoveredCell, setHoveredCell] = useState(null);
   const [isLoadingChunk, setIsLoadingChunk] = useState(false);
+  const lastTouchDistance = useRef(null);
+  const lastTouchMoveTime = useRef(0);
 
   // Track loaded chunks (10x10 areas)
   const loadedChunks = useRef(new Set());
@@ -412,6 +414,92 @@ const MapCanvas = () => {
     [scale, offset]
   );
 
+  // Touch event handlers
+  const handleTouchStart = useCallback(
+    (e) => {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - offset.x,
+        y: touch.clientY - offset.y,
+      });
+      tempOffsetRef.current = offset;
+
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        lastTouchDistance.current = distance;
+      }
+    },
+    [offset]
+  );
+
+  const handleTouchMove = useCallback(
+    (e) => {
+      // Throttle touch move updates to every 16ms (approximately 60fps)
+      const now = Date.now();
+      if (now - lastTouchMoveTime.current < 16) {
+        return;
+      }
+      lastTouchMoveTime.current = now;
+
+      if (e.touches.length === 1 && isDragging) {
+        const touch = e.touches[0];
+        tempOffsetRef.current = {
+          x: touch.clientX - dragStart.x,
+          y: touch.clientY - dragStart.y,
+        };
+        requestAnimationFrame(drawGrid);
+      } else if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+
+        if (lastTouchDistance.current !== null) {
+          const scaleFactor = distance / lastTouchDistance.current;
+          const newScale = Math.min(Math.max(scale * scaleFactor, 1), 20);
+
+          // Calculate midpoint between touches
+          const midX = (touch1.clientX + touch2.clientX) / 2;
+          const midY = (touch1.clientY + touch2.clientY) / 2;
+          const rect = canvasRef.current.getBoundingClientRect();
+          const worldX =
+            (midX - rect.left - offset.x - canvasRef.current.width / 2) / scale;
+          const worldY =
+            (midY - rect.top - offset.y - canvasRef.current.height / 4) / scale;
+
+          const newScreenX =
+            worldX * newScale + offset.x + canvasRef.current.width / 2;
+          const newScreenY =
+            worldY * newScale + offset.y + canvasRef.current.height / 4;
+
+          setScale(newScale);
+          setOffset({
+            x: offset.x + (midX - rect.left - newScreenX),
+            y: offset.y + (midY - rect.top - newScreenY),
+          });
+        }
+        lastTouchDistance.current = distance;
+      }
+    },
+    [isDragging, dragStart, drawGrid, scale, offset]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (isDragging) {
+      setOffset(tempOffsetRef.current);
+      setIsDragging(false);
+    }
+    lastTouchDistance.current = null;
+  }, [isDragging]);
+
   return (
     <canvas
       ref={canvasRef}
@@ -426,6 +514,9 @@ const MapCanvas = () => {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     />
   );
 };
