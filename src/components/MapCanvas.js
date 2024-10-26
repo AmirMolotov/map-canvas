@@ -127,13 +127,10 @@ const MapCanvas = () => {
     const minY = Math.floor(Math.min(...corners.map((c) => c.y)) / 10);
     const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)) / 10);
 
-    // Add only chunks that are within the viewport and the 100x100 grid
-    for (let x = minX; x <= maxX; x++) {
-      for (let y = minY; y <= maxY; y++) {
-        if (x >= 0 && x < 10 && y >= 0 && y < 10) {
-          // Stay within 100x100 grid
-          visibleChunks.add(getChunkKey(x, y));
-        }
+    // Add chunks within the viewport with expanded boundaries
+    for (let x = minX - 1; x <= maxX + 1; x++) {
+      for (let y = minY - 1; y <= maxY + 1; y++) {
+        visibleChunks.add(getChunkKey(x, y));
       }
     }
 
@@ -227,8 +224,27 @@ const MapCanvas = () => {
     const visibleChunks = getVisibleChunks();
     const visibleChunksSet = new Set(visibleChunks);
 
-    for (let x = 0; x < 100; x++) {
-      for (let y = 0; y < 100; y++) {
+    // Calculate visible area in grid coordinates
+    const corners = [
+      screenToIso(0, 0, currentOffset, scale),
+      screenToIso(canvasRef.current.width, 0, currentOffset, scale),
+      screenToIso(0, canvasRef.current.height, currentOffset, scale),
+      screenToIso(
+        canvasRef.current.width,
+        canvasRef.current.height,
+        currentOffset,
+        scale
+      ),
+    ];
+
+    const minX = Math.floor(Math.min(...corners.map((c) => c.x))) - 2;
+    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x))) + 2;
+    const minY = Math.floor(Math.min(...corners.map((c) => c.y))) - 2;
+    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y))) + 2;
+
+    // Render visible cells
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
         // Check if this cell's chunk is visible
         const chunkX = Math.floor(x / 10);
         const chunkY = Math.floor(y / 10);
@@ -305,6 +321,7 @@ const MapCanvas = () => {
     getVisibleChunks,
     getChunkKey,
     isLoadingChunk,
+    screenToIso,
   ]);
 
   useEffect(() => {
@@ -340,12 +357,7 @@ const MapCanvas = () => {
 
       const currentOffset = isDragging ? tempOffsetRef.current : offset;
       const cell = screenToIso(mouseX, mouseY, currentOffset, scale);
-
-      if (cell.x >= 0 && cell.x < 100 && cell.y >= 0 && cell.y < 100) {
-        setHoveredCell(cell);
-      } else {
-        setHoveredCell(null);
-      }
+      setHoveredCell(cell);
 
       if (isDragging) {
         tempOffsetRef.current = {
