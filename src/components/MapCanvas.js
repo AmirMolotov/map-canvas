@@ -10,19 +10,44 @@ const MapCanvas = () => {
   const tonImageRef = useRef(null);
   const lockImageRef = useRef(null);
   const [scale, setScale] = useState(10);
-  const [offset, setOffset] = useState({ x: 0, y: -200 });
+  // Center on row 50, col 50
+  const initialOffset = { x: 0, y: -1500 * 10 }; // y = -(50 + 50) * 15 * scale
+  const [offset, setOffset] = useState(initialOffset);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const tempOffsetRef = useRef({ x: 0, y: -200 });
+  const tempOffsetRef = useRef(initialOffset);
   const [imagesLoaded, setImagesLoaded] = useState(0);
+  const [hoveredCell, setHoveredCell] = useState(null);
 
-  // Generate points once and store them, mapping them to our 100x100 grid
+  // Generate points for 10x10 grid in the center (45-55)
   const points = useRef(
-    generateMockLocations(0, 99, 0, 99).map((loc) => ({
+    generateMockLocations(45, 55, 45, 55).map((loc) => ({
       x: loc.latitude,
       y: loc.longitude,
       type: loc.type === 1 ? "A" : loc.type === 2 ? "B" : "C",
     }))
+  );
+
+  // Convert screen coordinates to isometric grid coordinates
+  const screenToIso = useCallback(
+    (screenX, screenY, currentOffset, currentScale) => {
+      // Adjust for canvas center and offset
+      const x = screenX - currentOffset.x - canvasRef.current.width / 2;
+      const y = screenY - currentOffset.y - canvasRef.current.height / 4;
+
+      // Convert to grid coordinates
+      const tileWidth = 30 * currentScale;
+      const tileHeight = 15 * currentScale;
+
+      const isoX = (x / tileWidth + y / tileHeight) / 2;
+      const isoY = (y / tileHeight - x / tileWidth) / 2;
+
+      return {
+        x: Math.floor(isoX),
+        y: Math.floor(isoY),
+      };
+    },
+    []
   );
 
   // Load all images
@@ -31,7 +56,6 @@ const MapCanvas = () => {
       return new Promise((resolve) => {
         const img = new Image();
         img.src = src;
-        // For SVGs, we want to ensure they maintain their crisp edges
         if (src.endsWith(".svg")) {
           img.style.imageRendering = "optimizeQuality";
         }
@@ -51,7 +75,6 @@ const MapCanvas = () => {
     });
   }, []);
 
-  // Get the appropriate image for a point type
   const getPointImage = (type) => {
     switch (type) {
       case "A":
@@ -64,7 +87,6 @@ const MapCanvas = () => {
     }
   };
 
-  // Convert isometric coordinates to screen coordinates
   const isoToScreen = useCallback((x, y, currentOffset, currentScale) => {
     const screenX = (x - y) * 30 * currentScale;
     const screenY = (x + y) * 15 * currentScale;
@@ -74,27 +96,22 @@ const MapCanvas = () => {
     };
   }, []);
 
-  // Draw the isometric grid
   const drawGrid = useCallback(() => {
     if (!canvasRef.current || imagesLoaded < 3) return;
 
     const ctx = canvasRef.current.getContext("2d");
-    // Enable image smoothing for better quality
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Fill the canvas with black background
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
     const currentOffset = isDragging ? tempOffsetRef.current : offset;
 
-    // Create a map for quick point lookup
     const pointMap = new Map(
       points.current.map((p) => [`${p.x},${p.y}`, p.type])
     );
 
-    // Draw 100x100 grid
     for (let x = 0; x < 100; x++) {
       for (let y = 0; y < 100; y++) {
         const { x: screenX, y: screenY } = isoToScreen(
@@ -104,53 +121,50 @@ const MapCanvas = () => {
           scale
         );
 
-        // Calculate tile dimensions
-        const tileWidth = 60 * scale; // 2 * 30 (from isoToScreen calculation)
-        const tileHeight = 30 * scale; // 2 * 15 (from isoToScreen calculation)
+        const tileWidth = 60 * scale;
+        const tileHeight = 30 * scale;
 
-        // Only draw if within canvas bounds (with padding)
         if (
           screenX > -tileWidth &&
           screenX < canvasRef.current.width + tileWidth &&
           screenY > -tileHeight &&
           screenY < canvasRef.current.height + tileHeight
         ) {
-          // Save the current context state
           ctx.save();
-
-          // Move to the center of where we want to draw
           ctx.translate(screenX, screenY);
 
           const pointType = pointMap.get(`${x},${y}`);
           const image = getPointImage(pointType);
 
-          // Draw the appropriate image for the cell
           ctx.drawImage(
             image,
-            -tileWidth / 2, // Center the image horizontally
-            -tileHeight / 2, // Center the image vertically
-            tileWidth, // Match the tile width
-            tileHeight // Match the tile height
+            -tileWidth / 2,
+            -tileHeight / 2,
+            tileWidth,
+            tileHeight
           );
 
-          // Restore the context state
           ctx.restore();
         }
       }
     }
-  }, [scale, offset, isDragging, isoToScreen, imagesLoaded]);
+
+    // Draw hover coordinates
+    if (hoveredCell) {
+      ctx.save();
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText(`Row: ${hoveredCell.x}, Col: ${hoveredCell.y}`, 10, 30);
+      ctx.restore();
+    }
+  }, [scale, offset, isDragging, isoToScreen, imagesLoaded, hoveredCell]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-
-    // Set canvas size
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
-    // Initial draw
     drawGrid();
 
-    // Handle window resize
     const handleResize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -161,7 +175,6 @@ const MapCanvas = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, [drawGrid]);
 
-  // Mouse event handlers
   const handleMouseDown = useCallback(
     (e) => {
       setIsDragging(true);
@@ -173,6 +186,21 @@ const MapCanvas = () => {
 
   const handleMouseMove = useCallback(
     (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Update hovered cell
+      const currentOffset = isDragging ? tempOffsetRef.current : offset;
+      const cell = screenToIso(mouseX, mouseY, currentOffset, scale);
+
+      // Only show coordinates for cells within the 100x100 grid
+      if (cell.x >= 0 && cell.x < 100 && cell.y >= 0 && cell.y < 100) {
+        setHoveredCell(cell);
+      } else {
+        setHoveredCell(null);
+      }
+
       if (isDragging) {
         tempOffsetRef.current = {
           x: e.clientX - dragStart.x,
@@ -181,7 +209,7 @@ const MapCanvas = () => {
         drawGrid();
       }
     },
-    [isDragging, dragStart, drawGrid]
+    [isDragging, dragStart, drawGrid, offset, scale, screenToIso]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -191,31 +219,30 @@ const MapCanvas = () => {
     }
   }, [isDragging]);
 
-  // Handle zooming
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCell(null);
+    handleMouseUp();
+  }, [handleMouseUp]);
+
   const handleWheel = useCallback(
     (e) => {
       e.preventDefault();
 
-      // Get mouse position relative to canvas
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Calculate world position before zoom
       const worldX = (mouseX - offset.x - canvasRef.current.width / 2) / scale;
       const worldY = (mouseY - offset.y - canvasRef.current.height / 4) / scale;
 
-      // Calculate new scale
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
       const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20);
 
-      // Calculate new screen position after zoom
       const newScreenX =
         worldX * newScale + offset.x + canvasRef.current.width / 2;
       const newScreenY =
         worldY * newScale + offset.y + canvasRef.current.height / 4;
 
-      // Calculate required offset to maintain mouse position
       const newOffset = {
         x: offset.x + (mouseX - newScreenX),
         y: offset.y + (mouseY - newScreenY),
@@ -233,13 +260,13 @@ const MapCanvas = () => {
       style={{
         cursor: isDragging ? "grabbing" : "grab",
         touchAction: "none",
-        backgroundColor: "#000000", // Set black background in CSS as well
-        display: "block", // Prevent any unwanted margins
+        backgroundColor: "#000000",
+        display: "block",
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
     />
   );
