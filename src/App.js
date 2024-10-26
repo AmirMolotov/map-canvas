@@ -1,9 +1,11 @@
-import { Map } from "./components/Map";
+import React from "react";
 import "./App.css";
+import MapCanvas from "./components/MapCanvas";
+
 function App() {
   return (
     <div className="App">
-      <Map />
+      <MapCanvas />
     </div>
   );
 }

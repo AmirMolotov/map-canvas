@@ -65,23 +65,39 @@ const getCellStyles = (cellType) => {
   }
 };
 
-const NavigationButton = ({ onClick, style, children }) => (
-  <button
+const IsometricButton = ({ onClick, position, children }) => (
+  <div
     onClick={onClick}
     style={{
       position: "absolute",
-      padding: "10px 20px",
+      width: "40px",
+      height: "40px",
       backgroundColor: "rgba(255, 255, 255, 0.2)",
       border: "2px solid rgba(255, 255, 255, 0.4)",
       color: "white",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
       cursor: "pointer",
+      fontSize: "20px",
+      transform: `
+        translate(${position.x}px, ${position.y}px)
+        rotateX(60deg) rotateZ(-45deg)
+      `,
+      transformStyle: "preserve-3d",
       zIndex: 1000,
-      borderRadius: "5px",
-      ...style,
+      userSelect: "none",
+      transition: "background-color 0.2s",
     }}
+    onMouseEnter={(e) =>
+      (e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.3)")
+    }
+    onMouseLeave={(e) =>
+      (e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)")
+    }
   >
     {children}
-  </button>
+  </div>
 );
 
 export const Map = () => {
@@ -138,7 +154,7 @@ export const Map = () => {
           boundaries.minCol,
           boundaries.maxCol
         );
-        setPosition((prev) => ({ ...prev, y: prev.y + 300 }));
+        setPosition((prev) => ({ ...prev, y: prev.y - 300 }));
         break;
       case "down":
         newBoundaries.maxRow += 3;
@@ -148,7 +164,7 @@ export const Map = () => {
           boundaries.minCol,
           boundaries.maxCol
         );
-        setPosition((prev) => ({ ...prev, y: prev.y - 300 }));
+        setPosition((prev) => ({ ...prev, y: prev.y + 300 }));
         break;
       case "left":
         newBoundaries.minCol -= 3;
@@ -158,7 +174,7 @@ export const Map = () => {
           newBoundaries.minCol,
           newBoundaries.minCol + 2
         );
-        setPosition((prev) => ({ ...prev, x: prev.x + 300 }));
+        setPosition((prev) => ({ ...prev, x: prev.x - 300 }));
         break;
       case "right":
         newBoundaries.maxCol += 3;
@@ -168,12 +184,42 @@ export const Map = () => {
           newBoundaries.maxCol - 2,
           newBoundaries.maxCol
         );
-        setPosition((prev) => ({ ...prev, x: prev.x - 300 }));
+        setPosition((prev) => ({ ...prev, x: prev.x + 300 }));
         break;
     }
 
     setBoundaries(newBoundaries);
     setAllLocations((prev) => [...prev, ...newLocations]);
+  };
+
+  // Calculate button positions in isometric space
+  const cellSize = 30; // Approximate pixel size of a grid cell
+  const gridWidth = (boundaries.maxCol - boundaries.minCol + 1) * cellSize;
+  const gridHeight = (boundaries.maxRow - boundaries.minRow + 1) * cellSize;
+
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+
+  // Increased offset for buttons to place them further from the grid
+  const buttonOffset = 100;
+
+  const buttonPositions = {
+    up: {
+      x: centerX - buttonOffset,
+      y: centerY - gridHeight / 2 - buttonOffset,
+    },
+    down: {
+      x: centerX + buttonOffset,
+      y: centerY + gridHeight / 2 + buttonOffset,
+    },
+    left: {
+      x: centerX - gridWidth / 2 - buttonOffset * 1.5,
+      y: centerY,
+    },
+    right: {
+      x: centerX + gridWidth / 2 + buttonOffset * 1.5,
+      y: centerY,
+    },
   };
 
   return (
@@ -192,30 +238,6 @@ export const Map = () => {
       }}
       {...bind()}
     >
-      <NavigationButton
-        onClick={() => expandGrid("up")}
-        style={{ top: "20px", left: "50%", transform: "translateX(-50%)" }}
-      >
-        ↑
-      </NavigationButton>
-      <NavigationButton
-        onClick={() => expandGrid("down")}
-        style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}
-      >
-        ↓
-      </NavigationButton>
-      <NavigationButton
-        onClick={() => expandGrid("left")}
-        style={{ left: "20px", top: "50%", transform: "translateY(-50%)" }}
-      >
-        ←
-      </NavigationButton>
-      <NavigationButton
-        onClick={() => expandGrid("right")}
-        style={{ right: "20px", top: "50%", transform: "translateY(-50%)" }}
-      >
-        →
-      </NavigationButton>
       <div
         style={{
           transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
@@ -227,6 +249,12 @@ export const Map = () => {
         }}
       >
         <IsometricContainer>
+          <IsometricButton
+            position={buttonPositions.up}
+            onClick={() => expandGrid("up")}
+          >
+            ↑
+          </IsometricButton>
           {gridCells.map(({ row, col }) => {
             const cellType = getCellType(row, col, allLocations);
             const location = allLocations.find(
@@ -257,7 +285,27 @@ export const Map = () => {
               </Isometric>
             );
           })}
+
+          <IsometricButton
+            position={buttonPositions.down}
+            onClick={() => expandGrid("down")}
+          >
+            ↓
+          </IsometricButton>
         </IsometricContainer>
+
+        <IsometricButton
+          position={buttonPositions.left}
+          onClick={() => expandGrid("left")}
+        >
+          ←
+        </IsometricButton>
+        <IsometricButton
+          position={buttonPositions.right}
+          onClick={() => expandGrid("right")}
+        >
+          →
+        </IsometricButton>
       </div>
     </div>
   );
