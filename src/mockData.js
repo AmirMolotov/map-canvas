@@ -16,7 +16,7 @@ const getRandomType = () => Math.floor(Math.random() * 3) + 1;
 export const generateMockLocations = (latMin, latMax, longMin, longMax) => {
   const locations = [];
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 100; i++) {
     locations.push({
       latitude: getRandomIntInRange(latMin, latMax),
       longitude: getRandomIntInRange(longMin, longMax),

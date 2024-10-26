@@ -196,17 +196,29 @@ const MapCanvas = () => {
     (e) => {
       e.preventDefault();
 
-      // Calculate zoom factor
+      // Get mouse position relative to canvas
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Calculate world position before zoom
+      const worldX = (mouseX - offset.x - canvasRef.current.width / 2) / scale;
+      const worldY = (mouseY - offset.y - canvasRef.current.height / 4) / scale;
+
+      // Calculate new scale
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20); // Limit scale between 1 and 20
+      const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20);
 
-      // Calculate the scale change
-      const scaleDiff = newScale / scale;
+      // Calculate new screen position after zoom
+      const newScreenX =
+        worldX * newScale + offset.x + canvasRef.current.width / 2;
+      const newScreenY =
+        worldY * newScale + offset.y + canvasRef.current.height / 4;
 
-      // Calculate new offset to maintain the center point
+      // Calculate required offset to maintain mouse position
       const newOffset = {
-        x: offset.x * scaleDiff,
-        y: offset.y * scaleDiff,
+        x: offset.x + (mouseX - newScreenX),
+        y: offset.y + (mouseY - newScreenY),
       };
 
       setScale(newScale);
