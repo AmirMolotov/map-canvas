@@ -214,9 +214,9 @@ const MapCanvas = () => {
     const minY = Math.floor(Math.min(...corners.map((c) => c.y)) / CHUNK_SIZE);
     const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)) / CHUNK_SIZE);
 
-    // Add chunks within the viewport with expanded boundaries
-    for (let x = minX - 1; x <= maxX + 1; x++) {
-      for (let y = minY - 1; y <= maxY + 1; y++) {
+    // Add only chunks that are actually visible in the viewport
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
         visibleChunks.add(getChunkKey(x, y));
       }
     }
@@ -235,11 +235,27 @@ const MapCanvas = () => {
   const checkAndLoadChunks = useCallback(() => {
     const visibleChunks = getVisibleChunks();
 
+    // Clear points for chunks that are no longer visible
+    const visibleChunksSet = new Set(visibleChunks);
+    points.current = points.current.filter((point) => {
+      const pointChunkX = Math.floor(point.x / CHUNK_SIZE);
+      const pointChunkY = Math.floor(point.y / CHUNK_SIZE);
+      return visibleChunksSet.has(getChunkKey(pointChunkX, pointChunkY));
+    });
+
+    // Clear loaded chunks that are no longer visible
+    loadedChunks.current = new Set(
+      Array.from(loadedChunks.current).filter((chunkKey) =>
+        visibleChunksSet.has(chunkKey)
+      )
+    );
+
+    // Load new visible chunks
     visibleChunks.forEach((chunkKey) => {
       const [chunkX, chunkY] = chunkKey.split(",").map(Number);
       loadChunkData(chunkX, chunkY);
     });
-  }, [getVisibleChunks, loadChunkData]);
+  }, [getVisibleChunks, loadChunkData, getChunkKey]);
 
   // Load all images
   useEffect(() => {
@@ -327,10 +343,10 @@ const MapCanvas = () => {
       ),
     ];
 
-    const minX = Math.floor(Math.min(...corners.map((c) => c.x))) - 2;
-    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x))) + 2;
-    const minY = Math.floor(Math.min(...corners.map((c) => c.y))) - 2;
-    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y))) + 2;
+    const minX = Math.floor(Math.min(...corners.map((c) => c.x)));
+    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x)));
+    const minY = Math.floor(Math.min(...corners.map((c) => c.y)));
+    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)));
 
     // Render visible cells
     for (let x = minX; x <= maxX; x++) {
