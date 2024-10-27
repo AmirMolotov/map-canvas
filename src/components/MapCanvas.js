@@ -25,7 +25,11 @@ const MapCanvas = () => {
   const lastTouchMoveTime = useRef(0);
   const [lastMousePos, setLastMousePos] = useState(null);
 
-  // Track loaded chunks (10x10 areas)
+  // Constants for chunk size
+  const CHUNK_SIZE = 20; // Maximum range for a chunk
+  const MAX_RANGE = 20; // Maximum allowed range for API requests
+
+  // Track loaded chunks
   const loadedChunks = useRef(new Set());
   // Store all points
   const points = useRef([]);
@@ -92,10 +96,11 @@ const MapCanvas = () => {
 
       try {
         // Calculate grid coordinates for this chunk
-        const startX = chunkX * 10;
-        const startY = chunkY * 10;
-        const endX = startX + 9;
-        const endY = startY + 9;
+        const startX = chunkX * CHUNK_SIZE;
+        const startY = chunkY * CHUNK_SIZE;
+        // Ensure we don't exceed the maximum range
+        const endX = startX + (MAX_RANGE - 1);
+        const endY = startY + (MAX_RANGE - 1);
 
         const body = {
           init_data:
@@ -204,10 +209,10 @@ const MapCanvas = () => {
     ];
 
     // Find min/max coordinates
-    const minX = Math.floor(Math.min(...corners.map((c) => c.x)) / 10);
-    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x)) / 10);
-    const minY = Math.floor(Math.min(...corners.map((c) => c.y)) / 10);
-    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)) / 10);
+    const minX = Math.floor(Math.min(...corners.map((c) => c.x)) / CHUNK_SIZE);
+    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x)) / CHUNK_SIZE);
+    const minY = Math.floor(Math.min(...corners.map((c) => c.y)) / CHUNK_SIZE);
+    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)) / CHUNK_SIZE);
 
     // Add chunks within the viewport with expanded boundaries
     for (let x = minX - 1; x <= maxX + 1; x++) {
@@ -221,8 +226,8 @@ const MapCanvas = () => {
 
   // Load initial chunk (centered on 50,50)
   useEffect(() => {
-    const centerChunkX = Math.floor(50 / 10);
-    const centerChunkY = Math.floor(50 / 10);
+    const centerChunkX = Math.floor(50 / CHUNK_SIZE);
+    const centerChunkY = Math.floor(50 / CHUNK_SIZE);
     loadChunkData(centerChunkX, centerChunkY);
   }, [loadChunkData]);
 
@@ -331,8 +336,8 @@ const MapCanvas = () => {
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
         // Check if this cell's chunk is visible
-        const chunkX = Math.floor(x / 10);
-        const chunkY = Math.floor(y / 10);
+        const chunkX = Math.floor(x / CHUNK_SIZE);
+        const chunkY = Math.floor(y / CHUNK_SIZE);
         const chunkKey = getChunkKey(chunkX, chunkY);
 
         if (!visibleChunksSet.has(chunkKey)) {
