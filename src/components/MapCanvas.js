@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { generateMockLocations } from "../mockData";
 import emptyBlockImage from "../assets/empty-block.png";
 import tonBlockImage from "../assets/ton-block-lines.png";
-import lockBlockImage from "../assets/block-lock.svg";
+import lockBlockImage from "../assets/lock-block.png";
 import userBlockImage from "../assets/user-block.png";
 import axios from "axios";
 
@@ -281,9 +281,6 @@ const MapCanvas = () => {
       return new Promise((resolve) => {
         const img = new Image();
         img.src = src;
-        if (src.endsWith(".svg")) {
-          img.style.imageRendering = "optimizeQuality";
-        }
         img.onload = () => resolve(img);
       });
     };
@@ -328,8 +325,8 @@ const MapCanvas = () => {
     if (!canvasRef.current || imagesLoaded < 4) return;
 
     const ctx = canvasRef.current.getContext("2d");
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    // ctx.imageSmoothingEnabled = true;
+    // ctx.imageSmoothingQuality = "high";
 
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
