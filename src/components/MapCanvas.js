@@ -11,7 +11,7 @@ const MapCanvas = () => {
   const tonImageRef = useRef(null);
   const lockImageRef = useRef(null);
   const userImageRef = useRef(null);
-  const [scale, setScale] = useState(8);
+  const [scale, setScale] = useState(6);
   const initialOffset = { x: 0, y: 0 };
   const [offset, setOffset] = useState(initialOffset);
   const [isDragging, setIsDragging] = useState(false);
