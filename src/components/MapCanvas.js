@@ -192,7 +192,7 @@ const MapCanvas = () => {
     [getChunkKey]
   );
 
-  // Calculate visible chunks based on screen coordinates
+  // Calculate visible chunks based on screen coordinates and zoom level
   const getVisibleChunks = useCallback(() => {
     if (!canvasRef.current) return [];
 
@@ -200,23 +200,41 @@ const MapCanvas = () => {
     const currentOffset = isDragging ? tempOffsetRef.current : offset;
     const visibleChunks = new Set();
 
-    // Calculate grid coordinates for each corner of the viewport
-    const corners = [
-      screenToIso(0, 0, currentOffset, scale),
-      screenToIso(canvas.width, 0, currentOffset, scale),
-      screenToIso(0, canvas.height, currentOffset, scale),
-      screenToIso(canvas.width, canvas.height, currentOffset, scale),
-    ];
+    // Calculate the number of cells that fit in the viewport at current zoom level
+    const tileWidth = 30 * scale;
+    const tileHeight = 15 * scale;
 
-    // Find min/max coordinates
-    const minX = Math.floor(Math.min(...corners.map((c) => c.x)) / CHUNK_SIZE);
-    const maxX = Math.ceil(Math.max(...corners.map((c) => c.x)) / CHUNK_SIZE);
-    const minY = Math.floor(Math.min(...corners.map((c) => c.y)) / CHUNK_SIZE);
-    const maxY = Math.ceil(Math.max(...corners.map((c) => c.y)) / CHUNK_SIZE);
+    // Calculate how many cells fit in the viewport
+    const viewportCellsX = Math.ceil(canvas.width / tileWidth) * 2; // *2 because isometric tiles overlap
+    const viewportCellsY = Math.ceil(canvas.height / tileHeight) * 2;
 
-    // Add only chunks that are actually visible in the viewport
-    for (let x = minX; x <= maxX; x++) {
-      for (let y = minY; y <= maxY; y++) {
+    // Get the center point of the viewport in grid coordinates
+    const centerPoint = screenToIso(
+      canvas.width / 2,
+      canvas.height / 2,
+      currentOffset,
+      scale
+    );
+
+    // Calculate the range of cells to check based on viewport size and zoom
+    const halfViewportX = Math.ceil(viewportCellsX / 2);
+    const halfViewportY = Math.ceil(viewportCellsY / 2);
+
+    // Calculate the visible range in grid coordinates
+    const minX = centerPoint.x - halfViewportX;
+    const maxX = centerPoint.x + halfViewportX;
+    const minY = centerPoint.y - halfViewportY;
+    const maxY = centerPoint.y + halfViewportY;
+
+    // Convert grid coordinates to chunk coordinates
+    const minChunkX = Math.floor(minX / CHUNK_SIZE);
+    const maxChunkX = Math.ceil(maxX / CHUNK_SIZE);
+    const minChunkY = Math.floor(minY / CHUNK_SIZE);
+    const maxChunkY = Math.ceil(maxY / CHUNK_SIZE);
+
+    // Add visible chunks
+    for (let x = minChunkX; x <= maxChunkX; x++) {
+      for (let y = minChunkY; y <= maxChunkY; y++) {
         visibleChunks.add(getChunkKey(x, y));
       }
     }
