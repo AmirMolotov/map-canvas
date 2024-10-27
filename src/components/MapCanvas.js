@@ -25,7 +25,7 @@ const MapCanvas = () => {
   const loadedChunks = useRef(new Set());
   // Store all points
   const points = useRef([]);
-  // Track chunks being loaded
+  // Track chunks being loading
   const loadingChunks = useRef(new Set());
 
   // Convert screen coordinates to isometric grid coordinates
@@ -386,8 +386,6 @@ const MapCanvas = () => {
 
   const handleWheel = useCallback(
     (e) => {
-      e.preventDefault();
-
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -414,7 +412,6 @@ const MapCanvas = () => {
     [scale, offset]
   );
 
-  // Touch event handlers
   const handleTouchStart = useCallback(
     (e) => {
       const touch = e.touches[0];
@@ -447,46 +444,53 @@ const MapCanvas = () => {
       }
       lastTouchMoveTime.current = now;
 
-      if (e.touches.length === 1 && isDragging) {
-        const touch = e.touches[0];
-        tempOffsetRef.current = {
-          x: touch.clientX - dragStart.x,
-          y: touch.clientY - dragStart.y,
-        };
-        requestAnimationFrame(drawGrid);
-      } else if (e.touches.length === 2) {
+      if (e.touches.length === 2) {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
+        const rect = canvasRef.current.getBoundingClientRect();
+
+        // Calculate center point between touches
+        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+        // Calculate new distance between touch points
         const distance = Math.hypot(
           touch2.clientX - touch1.clientX,
           touch2.clientY - touch1.clientY
         );
 
         if (lastTouchDistance.current !== null) {
-          const scaleFactor = distance / lastTouchDistance.current;
-          const newScale = Math.min(Math.max(scale * scaleFactor, 1), 20);
+          // Calculate scale change with dampening
+          const scaleDelta = (distance / lastTouchDistance.current - 1) * 0.3; // Adjusted dampening factor
+          const newScale = Math.min(Math.max(scale * (1 + scaleDelta), 1), 20);
 
-          // Calculate midpoint between touches
-          const midX = (touch1.clientX + touch2.clientX) / 2;
-          const midY = (touch1.clientY + touch2.clientY) / 2;
-          const rect = canvasRef.current.getBoundingClientRect();
-          const worldX =
-            (midX - rect.left - offset.x - canvasRef.current.width / 2) / scale;
-          const worldY =
-            (midY - rect.top - offset.y - canvasRef.current.height / 4) / scale;
+          // Calculate world coordinates of the center before scaling
+          const worldX = (centerX - offset.x) / scale;
+          const worldY = (centerY - offset.y) / scale;
 
-          const newScreenX =
-            worldX * newScale + offset.x + canvasRef.current.width / 2;
-          const newScreenY =
-            worldY * newScale + offset.y + canvasRef.current.height / 4;
-
+          // Update scale
           setScale(newScale);
+
+          // Calculate new screen coordinates after scaling
+          const newScreenX = worldX * newScale + offset.x;
+          const newScreenY = worldY * newScale + offset.y;
+
+          // Update offset to maintain zoom center point
           setOffset({
-            x: offset.x + (midX - rect.left - newScreenX),
-            y: offset.y + (midY - rect.top - newScreenY),
+            x: offset.x + (centerX - newScreenX),
+            y: offset.y + (centerY - newScreenY),
           });
         }
+
+        // Update lastTouchDistance to the new distance for the next frame
         lastTouchDistance.current = distance;
+      } else if (e.touches.length === 1 && isDragging) {
+        const touch = e.touches[0];
+        tempOffsetRef.current = {
+          x: touch.clientX - dragStart.x,
+          y: touch.clientY - dragStart.y,
+        };
+        requestAnimationFrame(drawGrid);
       }
     },
     [isDragging, dragStart, drawGrid, scale, offset]
