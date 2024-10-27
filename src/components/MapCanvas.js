@@ -20,6 +20,7 @@ const MapCanvas = () => {
   const [isLoadingChunk, setIsLoadingChunk] = useState(false);
   const lastTouchDistance = useRef(null);
   const lastTouchMoveTime = useRef(0);
+  const [lastMousePos, setLastMousePos] = useState(null);
 
   // Track loaded chunks (10x10 areas)
   const loadedChunks = useRef(new Set());
@@ -27,6 +28,22 @@ const MapCanvas = () => {
   const points = useRef([]);
   // Track chunks being loading
   const loadingChunks = useRef(new Set());
+
+  // Define allowed zoom levels
+  const allowedZoomLevels = [8, 6, 4];
+
+  // Helper function to get next allowed zoom level
+  const getNextZoomLevel = (currentScale, zoomIn) => {
+    const sortedLevels = [...allowedZoomLevels].sort((a, b) => a - b);
+    if (zoomIn) {
+      return sortedLevels.find((level) => level > currentScale) || currentScale;
+    } else {
+      return (
+        sortedLevels.reverse().find((level) => level < currentScale) ||
+        currentScale
+      );
+    }
+  };
 
   // Convert screen coordinates to isometric grid coordinates
   const screenToIso = useCallback(
@@ -312,6 +329,63 @@ const MapCanvas = () => {
       60
     );
     ctx.restore();
+
+    // Draw zoom controls
+    ctx.save();
+
+    // Check if zoom levels are at min/max
+    const canZoomIn = scale < Math.max(...allowedZoomLevels);
+    const canZoomOut = scale > Math.min(...allowedZoomLevels);
+
+    // Draw zoom in button
+    ctx.fillStyle = canZoomIn
+      ? "rgba(20, 20, 20, 0.8)"
+      : "rgba(40, 40, 40, 0.5)";
+    ctx.fillRect(10, 100, 30, 30);
+    ctx.strokeStyle = canZoomIn
+      ? "rgba(0, 200, 255, 0.7)"
+      : "rgba(60, 60, 60, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(10, 100, 30, 30);
+    if (canZoomIn) {
+      ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
+      ctx.shadowBlur = 5;
+      ctx.strokeRect(10, 100, 30, 30);
+      ctx.shadowBlur = 0;
+    }
+    ctx.fillStyle = canZoomIn
+      ? "rgba(0, 200, 255, 0.9)"
+      : "rgba(100, 100, 100, 0.5)";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("+", 25, 115);
+
+    // Draw zoom out button
+    ctx.fillStyle = canZoomOut
+      ? "rgba(20, 20, 20, 0.8)"
+      : "rgba(40, 40, 40, 0.5)";
+    ctx.fillRect(10, 140, 30, 30);
+    ctx.strokeStyle = canZoomOut
+      ? "rgba(0, 200, 255, 0.7)"
+      : "rgba(60, 60, 60, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(10, 140, 30, 30);
+    if (canZoomOut) {
+      ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
+      ctx.shadowBlur = 5;
+      ctx.strokeRect(10, 140, 30, 30);
+      ctx.shadowBlur = 0;
+    }
+    ctx.fillStyle = canZoomOut
+      ? "rgba(0, 200, 255, 0.9)"
+      : "rgba(100, 100, 100, 0.5)";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("−", 25, 155);
+
+    ctx.restore();
   }, [
     scale,
     offset,
@@ -324,6 +398,7 @@ const MapCanvas = () => {
     getChunkKey,
     isLoadingChunk,
     screenToIso,
+    lastMousePos,
   ]);
 
   useEffect(() => {
@@ -344,11 +419,63 @@ const MapCanvas = () => {
 
   const handleMouseDown = useCallback(
     (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Check if click is on zoom buttons
+      if (x >= 10 && x <= 40) {
+        if (y >= 100 && y <= 130) {
+          // Zoom in from center
+          const newScale = getNextZoomLevel(scale, true);
+          if (newScale !== scale) {
+            const canvas = canvasRef.current;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            const worldX = (centerX - offset.x - canvas.width / 2) / scale;
+            const worldY = (centerY - offset.y - canvas.height / 4) / scale;
+
+            const newScreenX = worldX * newScale + offset.x + canvas.width / 2;
+            const newScreenY = worldY * newScale + offset.y + canvas.height / 4;
+
+            setScale(newScale);
+            setOffset({
+              x: offset.x + (centerX - newScreenX),
+              y: offset.y + (centerY - newScreenY),
+            });
+          }
+          return;
+        } else if (y >= 140 && y <= 170) {
+          // Zoom out from center
+          const newScale = getNextZoomLevel(scale, false);
+          if (newScale !== scale) {
+            const canvas = canvasRef.current;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            const worldX = (centerX - offset.x - canvas.width / 2) / scale;
+            const worldY = (centerY - offset.y - canvas.height / 4) / scale;
+
+            const newScreenX = worldX * newScale + offset.x + canvas.width / 2;
+            const newScreenY = worldY * newScale + offset.y + canvas.height / 4;
+
+            setScale(newScale);
+            setOffset({
+              x: offset.x + (centerX - newScreenX),
+              y: offset.y + (centerY - newScreenY),
+            });
+          }
+          return;
+        }
+      }
+
+      // Regular drag handling
       setIsDragging(true);
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
     },
-    [offset]
+    [offset, scale]
   );
 
   const handleMouseMove = useCallback(
@@ -356,6 +483,9 @@ const MapCanvas = () => {
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
+
+      // Update last mouse position for hover effects
+      setLastMousePos({ x: mouseX, y: mouseY });
 
       const currentOffset = isDragging ? tempOffsetRef.current : offset;
       const cell = screenToIso(mouseX, mouseY, currentOffset, scale);
@@ -366,6 +496,9 @@ const MapCanvas = () => {
           x: e.clientX - dragStart.x,
           y: e.clientY - dragStart.y,
         };
+        drawGrid();
+      } else {
+        // Redraw for hover effects even when not dragging
         drawGrid();
       }
     },
@@ -381,11 +514,13 @@ const MapCanvas = () => {
 
   const handleMouseLeave = useCallback(() => {
     setHoveredCell(null);
+    setLastMousePos(null);
     handleMouseUp();
   }, [handleMouseUp]);
 
   const handleWheel = useCallback(
     (e) => {
+      e.preventDefault(); // Prevent default wheel behavior
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -393,8 +528,8 @@ const MapCanvas = () => {
       const worldX = (mouseX - offset.x - canvasRef.current.width / 2) / scale;
       const worldY = (mouseY - offset.y - canvasRef.current.height / 4) / scale;
 
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.min(Math.max(scale * zoomFactor, 1), 20);
+      const newScale = getNextZoomLevel(scale, e.deltaY < 0);
+      if (newScale === scale) return;
 
       const newScreenX =
         worldX * newScale + offset.x + canvasRef.current.width / 2;
@@ -415,6 +550,57 @@ const MapCanvas = () => {
   const handleTouchStart = useCallback(
     (e) => {
       const touch = e.touches[0];
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Check if touch is on zoom buttons
+      if (x >= 10 && x <= 40) {
+        if (y >= 100 && y <= 130) {
+          // Zoom in from center
+          const newScale = getNextZoomLevel(scale, true);
+          if (newScale !== scale) {
+            const canvas = canvasRef.current;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            const worldX = (centerX - offset.x - canvas.width / 2) / scale;
+            const worldY = (centerY - offset.y - canvas.height / 4) / scale;
+
+            const newScreenX = worldX * newScale + offset.x + canvas.width / 2;
+            const newScreenY = worldY * newScale + offset.y + canvas.height / 4;
+
+            setScale(newScale);
+            setOffset({
+              x: offset.x + (centerX - newScreenX),
+              y: offset.y + (centerY - newScreenY),
+            });
+          }
+          return;
+        } else if (y >= 140 && y <= 170) {
+          // Zoom out from center
+          const newScale = getNextZoomLevel(scale, false);
+          if (newScale !== scale) {
+            const canvas = canvasRef.current;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            const worldX = (centerX - offset.x - canvas.width / 2) / scale;
+            const worldY = (centerY - offset.y - canvas.height / 4) / scale;
+
+            const newScreenX = worldX * newScale + offset.x + canvas.width / 2;
+            const newScreenY = worldY * newScale + offset.y + canvas.height / 4;
+
+            setScale(newScale);
+            setOffset({
+              x: offset.x + (centerX - newScreenX),
+              y: offset.y + (centerY - newScreenY),
+            });
+          }
+          return;
+        }
+      }
+
       setIsDragging(true);
       setDragStart({
         x: touch.clientX - offset.x,
@@ -432,7 +618,7 @@ const MapCanvas = () => {
         lastTouchDistance.current = distance;
       }
     },
-    [offset]
+    [offset, scale]
   );
 
   const handleTouchMove = useCallback(
@@ -445,45 +631,8 @@ const MapCanvas = () => {
       lastTouchMoveTime.current = now;
 
       if (e.touches.length === 2) {
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const rect = canvasRef.current.getBoundingClientRect();
-
-        // Calculate center point between touches
-        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-
-        // Calculate new distance between touch points
-        const distance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-
-        if (lastTouchDistance.current !== null) {
-          // Calculate scale change with dampening
-          const scaleDelta = (distance / lastTouchDistance.current - 1) * 0.3; // Adjusted dampening factor
-          const newScale = Math.min(Math.max(scale * (1 + scaleDelta), 1), 20);
-
-          // Calculate world coordinates of the center before scaling
-          const worldX = (centerX - offset.x) / scale;
-          const worldY = (centerY - offset.y) / scale;
-
-          // Update scale
-          setScale(newScale);
-
-          // Calculate new screen coordinates after scaling
-          const newScreenX = worldX * newScale + offset.x;
-          const newScreenY = worldY * newScale + offset.y;
-
-          // Update offset to maintain zoom center point
-          setOffset({
-            x: offset.x + (centerX - newScreenX),
-            y: offset.y + (centerY - newScreenY),
-          });
-        }
-
-        // Update lastTouchDistance to the new distance for the next frame
-        lastTouchDistance.current = distance;
+        // Disable pinch zoom
+        e.preventDefault();
       } else if (e.touches.length === 1 && isDragging) {
         const touch = e.touches[0];
         tempOffsetRef.current = {
@@ -493,7 +642,7 @@ const MapCanvas = () => {
         requestAnimationFrame(drawGrid);
       }
     },
-    [isDragging, dragStart, drawGrid, scale, offset]
+    [isDragging, dragStart, drawGrid]
   );
 
   const handleTouchEnd = useCallback(() => {
