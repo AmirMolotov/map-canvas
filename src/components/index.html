@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous">
+        </script>
+
+    <style>
+        body {
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .input-container input {
+            margin-right: 10px;
+        }
+
+        button {
+            width: 150px;
+        }
+
+        input {
+            width: 50px;
+        }
+
+        .separator {
+            border: 0;
+            height: 3px;
+            background: blue;
+            margin-top: 10px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <h1> Mini App Test Functions</h1>
+    <button onclick="gameSettings()">Game Settings</button>
+    <button onclick="login()">Login</button>
+    <hr class="separator">
+    <button onclick="sendTaps()">Send Taps</button>
+    <button onclick="sendUserCards()">Get Cards</button>
+    <hr class="separator">
+    <button onclick="updateCard()">Update card</button>
+    <input type="text" id="card_id_input" placeholder="Card ID">
+    <hr class="separator">
+    <button onclick="fullEnergy()">full energy</button>
+    <button onclick="increaseEnergy()">increase energy</button>
+    <hr class="separator">
+    <button onclick="increaseTap()">increase tap</button>
+    <button onclick="loginRewards()">login rewards</button>
+    <hr class="separator">
+    <button onclick="secretKey()">secret key</button>
+    <input type="text" id="secret_input" placeholder="Secret">
+    <hr class="separator">
+    <button onclick="performTask()">perform task</button>
+    <input type="text" id="task_id_input" placeholder="Task Id">
+    <hr class="separator">
+    <button onclick="getCards()">get cards</button>
+    <button onclick="getTasks()">get tasks</button>
+    <hr class="separator">
+    <button onclick="friendTask()">friend tasks</button>
+    <button onclick="getBalance()">get balance</button>
+    <hr class="separator">
+    <button onclick="getLeaderBoard()">get leader board</button>
+    <input type="text" id="level_id_input" placeholder="Level ID">
+    <input type="number" id="page_input" placeholder="Page No">
+    <hr class="separator">
+    <button onclick="getReferrals()">get referrals</button>
+    <input type="number" id="ref_page_input" placeholder="Page No">
+    <hr class="separator">
+    <button onclick="buyItem()">buy Item</button>
+    <input type="text" id="item_id_input" placeholder="Item ID">
+    <input type="number" id="item_quantity_input" placeholder="Quantity">
+    <hr class="separator">
+    <button onclick="useShield()">shield</button>
+    <input type="text" id="shield_item_id_input" placeholder="Item ID">
+    <hr class="separator">
+    <button onclick="useLock()">lock</button>
+    <input type="text" id="lock_item_id_input" placeholder="Item ID">
+    <input type="number" id="lock_x_loc_input" placeholder="X">
+    <input type="number" id="lock_y_loc_input" placeholder="Y">
+    <hr class="separator">
+    <button onclick="useTransfer()">transfer</button>
+    <input type="text" id="transfer_item_id_input" placeholder="Item ID">
+    <input type="number" id="transfer_x_loc_input" placeholder="X">
+    <input type="number" id="transfer_y_loc_input" placeholder="Y">
+    <hr class="separator">
+    <button onclick="useTeleport()">teleport</button>
+    <input type="text" id="teleport_item_id_input" placeholder="Item ID">
+    <hr class="separator">
+    <button onclick="map()">map</button>
+    <input type="text" id="map_planet_id_input" placeholder="Planet ID">
+    <input type="number" id="map_x_loc_input" placeholder="X">
+    <input type="number" id="map_y_loc_input" placeholder="Y">
+    <hr class="separator">
+    <button onclick="mineMining()">mine mining</button>
+    <input type="text" id="mine_item_id_input" placeholder="Item ID">
+    <input type="text" id="mine_mine_id_input" placeholder="Mine ID">
+    <hr class="separator">
+    <button onclick="userMining()">user mining</button>
+    <input type="text" id="mine_item_id_input2" placeholder="Item ID">
+    <input type="text" id="mine_target_id_input" placeholder="target ID">
+    <hr class="separator">
+    <button onclick="miningDataForMine()">mine data</button>
+    <input type="text" id="data_mine_id_input" placeholder="Mine ID">
+    <hr class="separator">
+    <button onclick="miningDataForUser()">target data</button>
+    <input type="text" id="data_user_id_input" placeholder="Target ID">
+    <hr class="separator">
+    <button onclick="rewardForMiningMine()">claim mine</button>
+    <input type="text" id="mine_event_id_input" placeholder="Event ID">
+    <hr class="separator">
+    <button onclick="rewardForMiningUser()">claim user</button>
+    <input type="text" id="user_event_id_input" placeholder="Event ID">
+    <hr class="separator">
+    <button onclick="changeName()">change name</button>
+    <input type="text" id="name_input" placeholder="name">
+    <hr class="separator">
+    <button id="closeApp" onclick="closeApp()">Close App</button>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        window.Telegram.WebApp.setHeaderColor("#000000")
+        tg.expand();
+        // const base_url = 'https://ttbvercel.onrender.com'
+        const base_url = 'https://m0vj9xw1-8000.euw.devtunnels.ms'
+        console.log("Init Data Unsafe: ", tg.initDataUnsafe)
+        console.log("Init Data: ", tg.initData)
+        console.log("user_name: ", tg.initDataUnsafe.user.username)
+        console.log("Init Data.username: ", tg.initData.first_name)
+
+
+        // $.ajax({
+        //     url: "https://api.telegram.org/6864050600:AAHFJz9MuSirAqRmFouZxCfPKCb8Nz-lxx4/getUserProfilePhotos",
+        //     method: "GET",
+
+        // })
+        // function gameSettings() {
+        //     $.ajax({
+        //         url: base_url + '/api/game_settings/',
+        //         type: 'POST',
+        //         contentType: 'application/json',
+        //         data: JSON.stringify({
+        //             'init_data': tg.initData
+        //         })
+        //     });
+        // };
+        async function gameSettings() {
+            const url = base_url + '/api/game_settings/';
+            const data = { init_data: tg.initData };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error fetching game settings: ${response.statusText}`);
+            }
+
+            const gameSettingsData = await response.json();
+            // Use the gameSettingsData here
+        }
+        function login() {
+            $.ajax({
+                url: base_url + '/api/login/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData
+                })
+            });
+        };
+
+        function sendTaps() {
+            $.ajax({
+                url: base_url + '/api/tap/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'tap_info': { 'start_time': getUnixStartTimeInSeconds() - 100, 'end_time': getUnixStartTimeInSeconds() - 2, 'taps': 2 }
+                })
+            });
+        };
+        function sendUserCards() {
+            $.ajax({
+                url: base_url + '/api/get_cards/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function updateCard() {
+            const card_id = document.getElementById('card_id_input').value;
+            $.ajax({
+                url: base_url + '/api/update_card/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'card_info': { 'card_id': card_id }
+                })
+            });
+        };
+        function fullEnergy() {
+            $.ajax({
+                url: base_url + '/api/full_energy/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function increaseTap() {
+            $.ajax({
+                url: base_url + '/api/increase_tap/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function increaseEnergy() {
+            $.ajax({
+                url: base_url + '/api/increase_energy/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function secretKey() {
+            const secret_word = document.getElementById('secret_input').value;
+            $.ajax({
+                url: base_url + '/api/secret_key/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'secret_key': { 'secret_key': secret_word }
+                })
+            });
+        };
+        function loginRewards() {
+            $.ajax({
+                url: base_url + '/api/login_rewards/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function performTask() {
+            const task_id = document.getElementById('task_id_input').value;
+            $.ajax({
+                url: base_url + '/api/task/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'task_info': { 'task_id': task_id }
+                })
+            });
+        };
+        function getCards() {
+            $.ajax({
+                url: base_url + '/api/get_cards/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function getTasks() {
+            $.ajax({
+                url: base_url + '/api/get_tasks/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function friendTask() {
+            $.ajax({
+                url: base_url + '/api/friend_task/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                })
+            });
+        };
+        function getBalance() {
+            $.ajax({
+                url: base_url + '/api/get_balance/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData
+                })
+            });
+        };
+        function getLeaderBoard() {
+            const level_id = document.getElementById('level_id_input').value;
+            const page_no = document.getElementById('page_input').value;
+            $.ajax({
+                url: base_url + '/api/get_leaderboard/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'leaderboard_info': { 'level_id': level_id, 'page': page_no }
+                })
+            });
+        };
+        function getReferrals() {
+            const page_no = document.getElementById('ref_page_input').value;
+            $.ajax({
+                url: base_url + '/api/get_referrals/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'referrals_info': { 'page': page_no }
+                })
+            });
+        };
+        function buyItem() {
+            const item_id = document.getElementById('item_id_input').value;
+            const item_quantity = document.getElementById('item_quantity_input').value;
+            $.ajax({
+                url: base_url + '/api/buy_item_coin/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id, "quantity": parseInt(item_quantity) }
+                })
+            });
+        };
+        function useShield() {
+            const item_id = document.getElementById('shield_item_id_input').value;
+            $.ajax({
+                url: base_url + '/api/use_shield/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id }
+                })
+            });
+        };
+        function useTransfer() {
+            const item_id = document.getElementById('transfer_item_id_input').value;
+            const x_loc = document.getElementById('transfer_x_loc_input').value;
+            const y_loc = document.getElementById('transfer_y_loc_input').value;
+            $.ajax({
+                url: base_url + '/api/use_transfer/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id, 'x_loc': x_loc, 'y_loc': y_loc }
+                })
+            });
+        };
+        function useTeleport() {
+            const item_id = document.getElementById('teleport_item_id_input').value;
+            $.ajax({
+                url: base_url + '/api/use_teleport/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id }
+                })
+            });
+        };
+        function useLock() {
+            const item_id = document.getElementById('lock_item_id_input').value;
+            const x_loc = document.getElementById('lock_x_loc_input').value;
+            const y_loc = document.getElementById('lock_y_loc_input').value;
+            $.ajax({
+                url: base_url + '/api/use_lock/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id, 'x_loc': x_loc, 'y_loc': y_loc }
+                })
+            });
+        };
+        function map() {
+            const planet_id = document.getElementById('map_planet_id_input').value;
+            const x_loc = document.getElementById('map_x_loc_input').value;
+            const y_loc = document.getElementById('map_y_loc_input').value;
+            $.ajax({
+                url: base_url + '/api/map/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'map_info': { 'planet_id': planet_id, 'x_loc': parseInt(x_loc), 'y_loc': parseInt(y_loc) }
+                })
+            });
+        };
+        function mineMining() {
+            const item_id = document.getElementById('mine_item_id_input').value;
+            const mine_id = document.getElementById('mine_mine_id_input').value;
+            $.ajax({
+                url: base_url + '/api/mine_mining/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id, "mine_id": mine_id }
+                })
+            });
+        };
+        function userMining() {
+            const item_id = document.getElementById('mine_item_id_input2').value;
+            const target_id = document.getElementById('mine_target_id_input').value;
+            $.ajax({
+                url: base_url + '/api/user_mining/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'item_info': { 'item_id': item_id, "target_id": target_id }
+                })
+            });
+        };
+        function miningDataForMine() {
+            const mine_id = document.getElementById('data_mine_id_input').value;
+            $.ajax({
+                url: base_url + '/api/mining_data_mine/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'mine_info': { "mine_id": mine_id }
+                })
+            });
+        };
+        function miningDataForUser() {
+            const target_id = document.getElementById('data_user_id_input').value;
+            $.ajax({
+                url: base_url + '/api/mining_data_user/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'target_info': { "target_id": target_id }
+                })
+            });
+        };
+        function rewardForMiningMine() {
+            const event_id = document.getElementById('mine_event_id_input').value;
+            $.ajax({
+                url: base_url + '/api/claim_mine_mining/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'event_info': { "event_id": event_id }
+                })
+            });
+        };
+        function rewardForMiningUser() {
+            const event_id = document.getElementById('user_event_id_input').value;
+            $.ajax({
+                url: base_url + '/api/claim_user_mining/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'event_info': { "event_id": event_id }
+                })
+            });
+        };
+        function changeName() {
+            const name = document.getElementById('name_input').value;
+            $.ajax({
+                url: base_url + '/api/change_name/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'init_data': tg.initData,
+                    'name_info': { "first_name": name }
+                })
+            });
+        };
+
+
+        // function getUnixStartTimeInSeconds() {
+        //     const startTime = Math.floor(new Date().getTime() / 1000);
+        //     document.getElementById("startTime").textContent = startTime;
+        // }
+        function getUnixStartTimeInSeconds() {
+            const startTime = Math.floor(new Date().getTime() / 1000);
+            return startTime;
+        }
+
+        function closeApp() {
+            tg.close()
+        };
+    </script>
+</body>
+
+</html>

@@ -3,14 +3,17 @@ import { generateMockLocations } from "../mockData";
 import emptyBlockImage from "../assets/empty-block.png";
 import tonBlockImage from "../assets/ton-block-lines.png";
 import lockBlockImage from "../assets/block-lock.svg";
+import userBlockImage from "../assets/user-block.png";
+import axios from "axios";
 
 const MapCanvas = () => {
   const canvasRef = useRef(null);
   const emptyImageRef = useRef(null);
   const tonImageRef = useRef(null);
   const lockImageRef = useRef(null);
+  const userImageRef = useRef(null);
   const [scale, setScale] = useState(8);
-  const initialOffset = { x: 0, y: -1500 * 10 };
+  const initialOffset = { x: 0, y: 0 };
   const [offset, setOffset] = useState(initialOffset);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -71,7 +74,6 @@ const MapCanvas = () => {
     []
   );
 
-  // Load data for a specific chunk
   const loadChunkData = useCallback(
     async (chunkX, chunkY) => {
       const chunkKey = getChunkKey(chunkX, chunkY);
@@ -95,24 +97,85 @@ const MapCanvas = () => {
         const endX = startX + 9;
         const endY = startY + 9;
 
-        // Generate new data for this chunk
-        const newPoints = await generateMockLocations(
-          startX,
-          endX,
-          startY,
-          endY
-        );
-        const mappedPoints = newPoints.map((loc) => ({
-          x: loc.latitude,
-          y: loc.longitude,
-          type: loc.type === 1 ? "A" : loc.type === 2 ? "B" : "C",
-        }));
+        const body = {
+          init_data:
+            "query_id=AAEjkvwGAAAAACOS_AYyDS2l&user=%7B%22id%22%3A117215779%2C%22first_name%22%3A%22Ali%22%2C%22last_name%22%3A%22Manouchehri%22%2C%22username%22%3A%22manouchehri1990%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%7D&auth_date=1729849891&hash=b2690a8b4b2233b20656f544d9384ed2c4daf9e2f68666d74425b09df23abde2",
+          map_info: {
+            planet_id: 1,
+            x_loc_min: startX,
+            x_loc_max: endX,
+            y_loc_min: startY,
+            y_loc_max: endY,
+          },
+        };
 
-        // Append new points
-        points.current = [...points.current, ...mappedPoints];
+        // Make API request with data in body
+        const response = await axios({
+          method: "post",
+          url: "https://m0vj9xw1-8000.euw.devtunnels.ms/api/map_range/",
+          data: body,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-        // Mark chunk as loaded
-        loadedChunks.current.add(chunkKey);
+        if (response.data) {
+          // Process each location in the response
+          const processedPoints = [];
+
+          // Process range
+          if (response.data[0]?.range) {
+            // Handle range data if needed
+          }
+
+          // Process users
+          if (response.data[1]?.users) {
+            response.data[1].users.forEach((user) => {
+              processedPoints.push({
+                x: user.x_location,
+                y: user.y_location,
+                type: "user",
+              });
+            });
+          }
+
+          // Process mines
+          if (response.data[2]?.mines) {
+            response.data[2].mines.forEach((mine) => {
+              processedPoints.push({
+                x: mine.x_location,
+                y: mine.y_location,
+                type: "mine",
+              });
+            });
+          }
+
+          // Process locks
+          if (response.data[3]?.locks) {
+            response.data[3].locks.forEach((lock) => {
+              processedPoints.push({
+                x: lock.x_location,
+                y: lock.y_location,
+                type: "lock",
+              });
+            });
+          }
+
+          // Update points
+          points.current = [...points.current, ...processedPoints];
+
+          // Mark chunk as loaded
+          loadedChunks.current.add(chunkKey);
+        }
+      } catch (error) {
+        console.error("Error loading chunk data:", error);
+        if (error.response) {
+          console.error(
+            "Response error:",
+            error.response.status,
+            error.response.data
+          );
+        }
       } finally {
         // Remove chunk from loading set
         loadingChunks.current.delete(chunkKey);
@@ -190,20 +253,23 @@ const MapCanvas = () => {
       loadImage(emptyBlockImage),
       loadImage(tonBlockImage),
       loadImage(lockBlockImage),
-    ]).then(([emptyImg, tonImg, lockImg]) => {
+      loadImage(userBlockImage),
+    ]).then(([emptyImg, tonImg, lockImg, userImg]) => {
       emptyImageRef.current = emptyImg;
       tonImageRef.current = tonImg;
       lockImageRef.current = lockImg;
-      setImagesLoaded(3);
+      userImageRef.current = userImg;
+      setImagesLoaded(4);
     });
   }, []);
 
   const getPointImage = (type) => {
     switch (type) {
-      case "A":
-      case "B":
+      case "user":
+        return userImageRef.current;
+      case "mine":
         return tonImageRef.current;
-      case "C":
+      case "lock":
         return lockImageRef.current;
       default:
         return emptyImageRef.current;
@@ -220,7 +286,7 @@ const MapCanvas = () => {
   }, []);
 
   const drawGrid = useCallback(() => {
-    if (!canvasRef.current || imagesLoaded < 3) return;
+    if (!canvasRef.current || imagesLoaded < 4) return;
 
     const ctx = canvasRef.current.getContext("2d");
     ctx.imageSmoothingEnabled = true;
