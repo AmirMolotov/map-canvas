@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { generateMockLocations } from "../mockData";
 import emptyBlockImage from "../assets/empty-block.png";
 import tonBlockImage from "../assets/ton-block-lines.png";
 import lockBlockImage from "../assets/lock-block.png";
@@ -419,6 +418,17 @@ const MapCanvas = () => {
       ctx.restore();
     }
 
+    // Draw visible bounds
+    ctx.save();
+    ctx.fillStyle = "white";
+    ctx.font = "16px Arial";
+    ctx.fillText(
+      `Bounds: X(${minX} to ${maxX}), Y(${minY} to ${maxY})`,
+      10,
+      90
+    );
+    ctx.restore();
+
     // Draw loaded chunks info and loading indicator
     ctx.save();
     ctx.fillStyle = "white";
@@ -443,16 +453,16 @@ const MapCanvas = () => {
     ctx.fillStyle = canZoomIn
       ? "rgba(20, 20, 20, 0.8)"
       : "rgba(40, 40, 40, 0.5)";
-    ctx.fillRect(10, 100, 30, 30);
+    ctx.fillRect(10, 120, 30, 30);
     ctx.strokeStyle = canZoomIn
       ? "rgba(0, 200, 255, 0.7)"
       : "rgba(60, 60, 60, 0.5)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(10, 100, 30, 30);
+    ctx.strokeRect(10, 120, 30, 30);
     if (canZoomIn) {
       ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
       ctx.shadowBlur = 5;
-      ctx.strokeRect(10, 100, 30, 30);
+      ctx.strokeRect(10, 120, 30, 30);
       ctx.shadowBlur = 0;
     }
     ctx.fillStyle = canZoomIn
@@ -461,22 +471,22 @@ const MapCanvas = () => {
     ctx.font = "20px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("+", 25, 115);
+    ctx.fillText("+", 25, 135);
 
     // Draw zoom out button
     ctx.fillStyle = canZoomOut
       ? "rgba(20, 20, 20, 0.8)"
       : "rgba(40, 40, 40, 0.5)";
-    ctx.fillRect(10, 140, 30, 30);
+    ctx.fillRect(10, 160, 30, 30);
     ctx.strokeStyle = canZoomOut
       ? "rgba(0, 200, 255, 0.7)"
       : "rgba(60, 60, 60, 0.5)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(10, 140, 30, 30);
+    ctx.strokeRect(10, 160, 30, 30);
     if (canZoomOut) {
       ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
       ctx.shadowBlur = 5;
-      ctx.strokeRect(10, 140, 30, 30);
+      ctx.strokeRect(10, 160, 30, 30);
       ctx.shadowBlur = 0;
     }
     ctx.fillStyle = canZoomOut
@@ -485,7 +495,7 @@ const MapCanvas = () => {
     ctx.font = "20px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("−", 25, 155);
+    ctx.fillText("−", 25, 175);
 
     ctx.restore();
   }, [
@@ -527,7 +537,7 @@ const MapCanvas = () => {
 
       // Check if click is on zoom buttons
       if (x >= 10 && x <= 40) {
-        if (y >= 100 && y <= 130) {
+        if (y >= 120 && y <= 150) {
           // Zoom in from center
           const newScale = getNextZoomLevel(scale, true);
           if (newScale !== scale) {
@@ -548,7 +558,7 @@ const MapCanvas = () => {
             });
           }
           return;
-        } else if (y >= 140 && y <= 170) {
+        } else if (y >= 160 && y <= 190) {
           // Zoom out from center
           const newScale = getNextZoomLevel(scale, false);
           if (newScale !== scale) {
@@ -658,7 +668,7 @@ const MapCanvas = () => {
 
       // Check if touch is on zoom buttons
       if (x >= 10 && x <= 40) {
-        if (y >= 100 && y <= 130) {
+        if (y >= 120 && y <= 150) {
           // Zoom in from center
           const newScale = getNextZoomLevel(scale, true);
           if (newScale !== scale) {
@@ -679,7 +689,7 @@ const MapCanvas = () => {
             });
           }
           return;
-        } else if (y >= 140 && y <= 170) {
+        } else if (y >= 160 && y <= 190) {
           // Zoom out from center
           const newScale = getNextZoomLevel(scale, false);
           if (newScale !== scale) {
