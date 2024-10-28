@@ -25,6 +25,8 @@ const MapModal = ({ isOpen, onClose, onStyleSelect }) => {
               key={style.id}
               className="style-button"
               onClick={() => {
+                console.log(isOpen);
+                if (!isOpen) return;
                 onStyleSelect(style.id);
                 onClose();
               }}

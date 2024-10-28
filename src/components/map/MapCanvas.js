@@ -211,7 +211,9 @@ const MapCanvas = () => {
   const openModal = () => {
     if (!isDragging) {
       setSelectedCell(hoveredCell);
-      setIsModalOpen(true);
+      setTimeout(() => {
+        setIsModalOpen(true);
+      }, 100);
     }
   };
 
@@ -228,6 +230,7 @@ const MapCanvas = () => {
         if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
           const zoomIn = y < 160;
           const newScale = getNextZoomLevel(scale, zoomIn, ALLOWED_ZOOM_LEVELS);
+          setIsModalOpen(false);
           if (newScale !== scale) {
             const newOffset = calculateZoom(
               canvasRef.current.width / 2,

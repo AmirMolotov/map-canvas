@@ -29,18 +29,6 @@ export class CanvasRenderer {
     );
 
     // If a color is provided, draw a semi-transparent rectangle over the cell
-    if (color) {
-      this.ctx.fillStyle = color;
-      this.ctx.globalAlpha = 0.3; // Set transparency
-      this.ctx.beginPath();
-      // Draw diamond shape
-      this.ctx.moveTo(0, -tileHeight / 2);
-      this.ctx.lineTo(tileWidth / 2, 0);
-      this.ctx.lineTo(0, tileHeight / 2);
-      this.ctx.lineTo(-tileWidth / 2, 0);
-      this.ctx.closePath();
-      this.ctx.fill();
-    }
 
     this.ctx.restore();
   }
