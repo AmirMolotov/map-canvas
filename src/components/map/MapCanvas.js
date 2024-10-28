@@ -41,10 +41,23 @@ const MapCanvas = () => {
   const mouseDownPos = useRef(null);
   const touchStartPos = useRef(null);
   const touchStartTime = useRef(null);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   const chunkManager = useRef(new ChunkManager());
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
+
+  // Add device detection
+  useEffect(() => {
+    const checkMobile = () => {
+      const mediaQuery = window.matchMedia("(max-width: 1024px)");
+      setIsMobileDevice(mediaQuery.matches);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     imageLoader.current.loadImages({
@@ -196,7 +209,7 @@ const MapCanvas = () => {
   }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapStyle]);
 
   const openModal = () => {
-    if (hoveredCell && !isDragging) {
+    if (!isDragging) {
       setSelectedCell(hoveredCell);
       setIsModalOpen(true);
     }
@@ -204,6 +217,8 @@ const MapCanvas = () => {
 
   const handleMouseDown = useCallback(
     (e) => {
+      if (isMobileDevice) return; // Skip if mobile device
+
       const rect = canvasRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -233,11 +248,13 @@ const MapCanvas = () => {
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
     },
-    [offset, scale]
+    [offset, scale, isMobileDevice]
   );
 
   const handleMouseMove = useCallback(
     (e) => {
+      if (isMobileDevice) return; // Skip if mobile device
+
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -278,11 +295,13 @@ const MapCanvas = () => {
         drawGrid();
       }
     },
-    [isDragging, dragStart, drawGrid, offset, scale]
+    [isDragging, dragStart, drawGrid, offset, scale, isMobileDevice]
   );
 
   const handleMouseUp = useCallback(
     (e) => {
+      if (isMobileDevice) return; // Skip if mobile device
+
       if (!isDragging && mouseDownPos.current) {
         const deltaX = Math.abs(e.clientX - mouseDownPos.current.x);
         const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
@@ -298,19 +317,23 @@ const MapCanvas = () => {
       setIsDragging(false);
       mouseDownPos.current = null;
     },
-    [isDragging]
+    [isDragging, isMobileDevice]
   );
 
   const handleMouseLeave = useCallback(() => {
+    if (isMobileDevice) return; // Skip if mobile device
+
     setHoveredCell(null);
     setLastMousePos(null);
     lastHoveredCellRef.current = null;
     setIsDragging(false);
     mouseDownPos.current = null;
-  }, []);
+  }, [isMobileDevice]);
 
   const handleWheel = useCallback(
     (e) => {
+      if (isMobileDevice) return; // Skip if mobile device
+
       e.preventDefault();
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -336,11 +359,13 @@ const MapCanvas = () => {
       setScale(newScale);
       setOffset(newOffset);
     },
-    [scale, offset]
+    [scale, offset, isMobileDevice]
   );
 
   const handleTouchStart = useCallback(
     (e) => {
+      if (!isMobileDevice) return; // Skip if not mobile device
+
       const touch = e.touches[0];
       const rect = canvasRef.current.getBoundingClientRect();
       const x = touch.clientX - rect.left;
@@ -398,11 +423,13 @@ const MapCanvas = () => {
         lastTouchDistance.current = distance;
       }
     },
-    [offset, scale, isDragging]
+    [offset, scale, isDragging, isMobileDevice]
   );
 
   const handleTouchMove = useCallback(
     (e) => {
+      if (!isMobileDevice) return; // Skip if not mobile device
+
       const now = Date.now();
       if (now - lastTouchMoveTime.current < 16) {
         return;
@@ -429,11 +456,13 @@ const MapCanvas = () => {
         requestAnimationFrame(drawGrid);
       }
     },
-    [isDragging, dragStart, drawGrid]
+    [isDragging, dragStart, drawGrid, isMobileDevice]
   );
 
   const handleTouchEnd = useCallback(
     (e) => {
+      if (!isMobileDevice) return; // Skip if not mobile device
+
       if (!isDragging && touchStartPos.current) {
         const touchEndTime = Date.now();
         const touchDuration = touchEndTime - touchStartTime.current;
@@ -453,7 +482,7 @@ const MapCanvas = () => {
       touchStartTime.current = null;
       lastTouchDistance.current = null;
     },
-    [isDragging]
+    [isDragging, isMobileDevice]
   );
 
   useEffect(() => {
