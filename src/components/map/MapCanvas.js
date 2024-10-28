@@ -3,6 +3,7 @@ import emptyBlockImage from "../../assets/empty-block.png";
 import tonBlockImage from "../../assets/ton-block-lines.png";
 import lockBlockImage from "../../assets/lock-block.png";
 import userBlockImage from "../../assets/user-block.png";
+import MapModal from "./MapModal";
 
 import {
   INITIAL_OFFSET,
@@ -33,13 +34,18 @@ const MapCanvas = () => {
   const lastTouchMoveTime = useRef(0);
   const [lastMousePos, setLastMousePos] = useState(null);
   const lastHoveredCellRef = useRef(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [mapStyle, setMapStyle] = useState("standard");
+  const dragThreshold = useRef(5);
+  const mouseDownPos = useRef(null);
+  const touchStartPos = useRef(null);
+  const touchStartTime = useRef(null);
 
-  // Initialize managers and loaders
   const chunkManager = useRef(new ChunkManager());
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
-  // Load images
   useEffect(() => {
     imageLoader.current.loadImages({
       empty: emptyBlockImage,
@@ -49,7 +55,6 @@ const MapCanvas = () => {
     });
   }, []);
 
-  // Initialize canvas renderer
   useEffect(() => {
     if (canvasRef.current) {
       canvasRenderer.current = new CanvasRenderer(
@@ -59,7 +64,6 @@ const MapCanvas = () => {
     }
   }, []);
 
-  // Load initial chunk
   useEffect(() => {
     const centerChunkX = Math.floor(50 / CHUNK_SIZE);
     const centerChunkY = Math.floor(50 / CHUNK_SIZE);
@@ -70,13 +74,27 @@ const MapCanvas = () => {
     );
   }, []);
 
-  // Function to get cell color based on coordinates
   const getCellColor = (x, y) => {
-    // Example color pattern: alternate between colors based on coordinates
-    const sum = Math.abs(x + y);
-    if (sum % 3 === 0) return "#FF0000"; // Red
-    if (sum % 3 === 1) return "#00FF00"; // Green
-    return "#0000FF"; // Blue
+    switch (mapStyle) {
+      case "satellite":
+        return `hsl(${Math.abs(x * 20 + y * 20) % 360}, 70%, 40%)`;
+      case "terrain":
+        return `hsl(120, ${30 + (Math.abs(x + y) % 40)}%, ${
+          40 + (Math.abs(x - y) % 30)
+        }%)`;
+      case "standard":
+      default:
+        const sum = Math.abs(x + y);
+        if (sum % 3 === 0) return "#FF0000";
+        if (sum % 3 === 1) return "#00FF00";
+        return "#0000FF";
+    }
+  };
+
+  const handleStyleSelect = (style) => {
+    setMapStyle(style);
+    setIsModalOpen(false);
+    drawGrid();
   };
 
   const drawGrid = useCallback(() => {
@@ -86,10 +104,8 @@ const MapCanvas = () => {
     const currentOffset = isDragging ? tempOffsetRef.current : offset;
     const renderer = canvasRenderer.current;
 
-    // Clear and draw background
     renderer.drawBackground();
 
-    // Get visible chunks and update chunk manager
     const visibleChunks = chunkManager.current.getVisibleChunks(
       screenToIso,
       currentOffset,
@@ -98,17 +114,14 @@ const MapCanvas = () => {
     );
     chunkManager.current.clearNonVisibleChunks(visibleChunks);
 
-    // Load new chunks
     visibleChunks.forEach((chunkKey) => {
       const [chunkX, chunkY] = chunkKey.split(",").map(Number);
       chunkManager.current.loadChunkData(chunkX, chunkY, setIsLoadingChunk);
     });
 
-    // Create point lookup map
     const points = chunkManager.current.getPoints();
     const pointMap = new Map(points.map((p) => [`${p.x},${p.y}`, p.type]));
 
-    // Calculate visible area
     const corners = [
       screenToIso(0, 0, currentOffset, scale, canvas.width, canvas.height),
       screenToIso(
@@ -144,7 +157,6 @@ const MapCanvas = () => {
       maxY: Math.ceil(Math.max(...corners.map((c) => c.y))),
     };
 
-    // Draw cells
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
       for (let y = bounds.minY; y <= bounds.maxY; y++) {
         const { x: screenX, y: screenY } = isoToScreen(
@@ -173,7 +185,6 @@ const MapCanvas = () => {
       }
     }
 
-    // Draw UI elements
     renderer.drawHoverCoordinates(hoveredCell);
     renderer.drawBounds(bounds);
     renderer.drawChunkInfo(
@@ -182,36 +193,26 @@ const MapCanvas = () => {
       isLoadingChunk
     );
     renderer.drawZoomControls(scale, ALLOWED_ZOOM_LEVELS);
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapStyle]);
+
+  const openModal = () => {
+    if (hoveredCell && !isDragging) {
+      setSelectedCell(hoveredCell);
+      setIsModalOpen(true);
+    }
+  };
 
   const handleMouseDown = useCallback(
     (e) => {
       const rect = canvasRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      mouseDownPos.current = { x: e.clientX, y: e.clientY };
 
-      // Check if click is on zoom buttons
       if (x >= 10 && x <= 40) {
-        if (y >= 120 && y <= 150) {
-          // Zoom in
-          const newScale = getNextZoomLevel(scale, true, ALLOWED_ZOOM_LEVELS);
-          if (newScale !== scale) {
-            const newOffset = calculateZoom(
-              canvasRef.current.width / 2,
-              canvasRef.current.height / 2,
-              offset,
-              scale,
-              newScale,
-              canvasRef.current.width,
-              canvasRef.current.height
-            );
-            setScale(newScale);
-            setOffset(newOffset);
-          }
-          return;
-        } else if (y >= 160 && y <= 190) {
-          // Zoom out
-          const newScale = getNextZoomLevel(scale, false, ALLOWED_ZOOM_LEVELS);
+        if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
+          const zoomIn = y < 160;
+          const newScale = getNextZoomLevel(scale, zoomIn, ALLOWED_ZOOM_LEVELS);
           if (newScale !== scale) {
             const newOffset = calculateZoom(
               canvasRef.current.width / 2,
@@ -229,8 +230,6 @@ const MapCanvas = () => {
         }
       }
 
-      // Start dragging
-      setIsDragging(true);
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
     },
@@ -245,6 +244,14 @@ const MapCanvas = () => {
 
       setLastMousePos({ x: mouseX, y: mouseY });
 
+      if (mouseDownPos.current) {
+        const deltaX = Math.abs(e.clientX - mouseDownPos.current.x);
+        const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
+        if (deltaX > dragThreshold.current || deltaY > dragThreshold.current) {
+          setIsDragging(true);
+        }
+      }
+
       const currentOffset = isDragging ? tempOffsetRef.current : offset;
       const newCell = screenToIso(
         mouseX,
@@ -255,7 +262,6 @@ const MapCanvas = () => {
         canvasRef.current.height
       );
 
-      // Only update hoveredCell if it's different from the last one
       const lastCell = lastHoveredCellRef.current;
       if (!lastCell || lastCell.x !== newCell.x || lastCell.y !== newCell.y) {
         lastHoveredCellRef.current = newCell;
@@ -275,19 +281,33 @@ const MapCanvas = () => {
     [isDragging, dragStart, drawGrid, offset, scale]
   );
 
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setOffset(tempOffsetRef.current);
+  const handleMouseUp = useCallback(
+    (e) => {
+      if (!isDragging && mouseDownPos.current) {
+        const deltaX = Math.abs(e.clientX - mouseDownPos.current.x);
+        const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
+        if (deltaX < dragThreshold.current && deltaY < dragThreshold.current) {
+          openModal();
+        }
+      }
+
+      if (isDragging) {
+        setOffset(tempOffsetRef.current);
+      }
+
       setIsDragging(false);
-    }
-  }, [isDragging]);
+      mouseDownPos.current = null;
+    },
+    [isDragging]
+  );
 
   const handleMouseLeave = useCallback(() => {
     setHoveredCell(null);
     setLastMousePos(null);
     lastHoveredCellRef.current = null;
-    handleMouseUp();
-  }, [handleMouseUp]);
+    setIsDragging(false);
+    mouseDownPos.current = null;
+  }, []);
 
   const handleWheel = useCallback(
     (e) => {
@@ -326,7 +346,21 @@ const MapCanvas = () => {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      // Check if touch is on zoom buttons
+      touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+      touchStartTime.current = Date.now();
+
+      // Update hovered cell for touch
+      const currentOffset = isDragging ? tempOffsetRef.current : offset;
+      const newCell = screenToIso(
+        x,
+        y,
+        currentOffset,
+        scale,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+      setHoveredCell(newCell);
+
       if (x >= 10 && x <= 40) {
         if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
           const zoomIn = y < 160;
@@ -348,7 +382,6 @@ const MapCanvas = () => {
         }
       }
 
-      setIsDragging(true);
       setDragStart({
         x: touch.clientX - offset.x,
         y: touch.clientY - offset.y,
@@ -365,7 +398,7 @@ const MapCanvas = () => {
         lastTouchDistance.current = distance;
       }
     },
-    [offset, scale]
+    [offset, scale, isDragging]
   );
 
   const handleTouchMove = useCallback(
@@ -375,6 +408,15 @@ const MapCanvas = () => {
         return;
       }
       lastTouchMoveTime.current = now;
+
+      if (touchStartPos.current) {
+        const touch = e.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartPos.current.x);
+        const deltaY = Math.abs(touch.clientY - touchStartPos.current.y);
+        if (deltaX > dragThreshold.current || deltaY > dragThreshold.current) {
+          setIsDragging(true);
+        }
+      }
 
       if (e.touches.length === 2) {
         e.preventDefault();
@@ -390,13 +432,29 @@ const MapCanvas = () => {
     [isDragging, dragStart, drawGrid]
   );
 
-  const handleTouchEnd = useCallback(() => {
-    if (isDragging) {
-      setOffset(tempOffsetRef.current);
+  const handleTouchEnd = useCallback(
+    (e) => {
+      if (!isDragging && touchStartPos.current) {
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime.current;
+
+        // Only open modal for short taps (less than 200ms)
+        if (touchDuration < 200) {
+          openModal();
+        }
+      }
+
+      if (isDragging) {
+        setOffset(tempOffsetRef.current);
+      }
+
       setIsDragging(false);
-    }
-    lastTouchDistance.current = null;
-  }, [isDragging]);
+      touchStartPos.current = null;
+      touchStartTime.current = null;
+      lastTouchDistance.current = null;
+    },
+    [isDragging]
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -415,23 +473,30 @@ const MapCanvas = () => {
   }, [drawGrid]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        cursor: isDragging ? "grabbing" : "grab",
-        touchAction: "none",
-        backgroundColor: "#000000",
-        display: "block",
-      }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        style={{
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none",
+          backgroundColor: "#000000",
+          display: "block",
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      />
+      <MapModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onStyleSelect={handleStyleSelect}
+      />
+    </>
   );
 };
 
