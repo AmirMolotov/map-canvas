@@ -1,6 +1,6 @@
 import React from "react";
 import "./App.css";
-import MapCanvas from "./components/MapCanvas";
+import MapCanvas from "./components/map/MapCanvas";
 
 function App() {
   return (

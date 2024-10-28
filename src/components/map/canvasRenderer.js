@@ -12,12 +12,14 @@ export class CanvasRenderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  drawCell(x, y, image, scale) {
+  drawCell(x, y, image, scale, color = null) {
     const tileWidth = 60 * scale;
     const tileHeight = 30 * scale;
 
     this.ctx.save();
     this.ctx.translate(x, y);
+
+    // Draw the base image first
     this.ctx.drawImage(
       image,
       -tileWidth / 2,
@@ -25,6 +27,21 @@ export class CanvasRenderer {
       tileWidth,
       tileHeight
     );
+
+    // If a color is provided, draw a semi-transparent rectangle over the cell
+    if (color) {
+      this.ctx.fillStyle = color;
+      this.ctx.globalAlpha = 0.3; // Set transparency
+      this.ctx.beginPath();
+      // Draw diamond shape
+      this.ctx.moveTo(0, -tileHeight / 2);
+      this.ctx.lineTo(tileWidth / 2, 0);
+      this.ctx.lineTo(0, tileHeight / 2);
+      this.ctx.lineTo(-tileWidth / 2, 0);
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
+
     this.ctx.restore();
   }
 

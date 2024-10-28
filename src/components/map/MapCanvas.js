@@ -32,6 +32,7 @@ const MapCanvas = () => {
   const lastTouchDistance = useRef(null);
   const lastTouchMoveTime = useRef(0);
   const [lastMousePos, setLastMousePos] = useState(null);
+  const lastHoveredCellRef = useRef(null);
 
   // Initialize managers and loaders
   const chunkManager = useRef(new ChunkManager());
@@ -68,6 +69,15 @@ const MapCanvas = () => {
       setIsLoadingChunk
     );
   }, []);
+
+  // Function to get cell color based on coordinates
+  const getCellColor = (x, y) => {
+    // Example color pattern: alternate between colors based on coordinates
+    const sum = Math.abs(x + y);
+    if (sum % 3 === 0) return "#FF0000"; // Red
+    if (sum % 3 === 1) return "#00FF00"; // Green
+    return "#0000FF"; // Blue
+  };
 
   const drawGrid = useCallback(() => {
     if (!canvasRef.current || !imageLoader.current.isLoaded()) return;
@@ -157,7 +167,8 @@ const MapCanvas = () => {
         ) {
           const pointType = pointMap.get(`${x},${y}`);
           const image = imageLoader.current.getPointImage(pointType);
-          renderer.drawCell(screenX, screenY, image, scale);
+          const color = getCellColor(x, y);
+          renderer.drawCell(screenX, screenY, image, scale, color);
         }
       }
     }
@@ -173,7 +184,6 @@ const MapCanvas = () => {
     renderer.drawZoomControls(scale, ALLOWED_ZOOM_LEVELS);
   }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
 
-  // Event handlers
   const handleMouseDown = useCallback(
     (e) => {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -181,6 +191,142 @@ const MapCanvas = () => {
       const y = e.clientY - rect.top;
 
       // Check if click is on zoom buttons
+      if (x >= 10 && x <= 40) {
+        if (y >= 120 && y <= 150) {
+          // Zoom in
+          const newScale = getNextZoomLevel(scale, true, ALLOWED_ZOOM_LEVELS);
+          if (newScale !== scale) {
+            const newOffset = calculateZoom(
+              canvasRef.current.width / 2,
+              canvasRef.current.height / 2,
+              offset,
+              scale,
+              newScale,
+              canvasRef.current.width,
+              canvasRef.current.height
+            );
+            setScale(newScale);
+            setOffset(newOffset);
+          }
+          return;
+        } else if (y >= 160 && y <= 190) {
+          // Zoom out
+          const newScale = getNextZoomLevel(scale, false, ALLOWED_ZOOM_LEVELS);
+          if (newScale !== scale) {
+            const newOffset = calculateZoom(
+              canvasRef.current.width / 2,
+              canvasRef.current.height / 2,
+              offset,
+              scale,
+              newScale,
+              canvasRef.current.width,
+              canvasRef.current.height
+            );
+            setScale(newScale);
+            setOffset(newOffset);
+          }
+          return;
+        }
+      }
+
+      // Start dragging
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      tempOffsetRef.current = offset;
+    },
+    [offset, scale]
+  );
+
+  const handleMouseMove = useCallback(
+    (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      setLastMousePos({ x: mouseX, y: mouseY });
+
+      const currentOffset = isDragging ? tempOffsetRef.current : offset;
+      const newCell = screenToIso(
+        mouseX,
+        mouseY,
+        currentOffset,
+        scale,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      // Only update hoveredCell if it's different from the last one
+      const lastCell = lastHoveredCellRef.current;
+      if (!lastCell || lastCell.x !== newCell.x || lastCell.y !== newCell.y) {
+        lastHoveredCellRef.current = newCell;
+        setHoveredCell(newCell);
+      }
+
+      if (isDragging) {
+        tempOffsetRef.current = {
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        };
+        drawGrid();
+      } else {
+        drawGrid();
+      }
+    },
+    [isDragging, dragStart, drawGrid, offset, scale]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (isDragging) {
+      setOffset(tempOffsetRef.current);
+      setIsDragging(false);
+    }
+  }, [isDragging]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCell(null);
+    setLastMousePos(null);
+    lastHoveredCellRef.current = null;
+    handleMouseUp();
+  }, [handleMouseUp]);
+
+  const handleWheel = useCallback(
+    (e) => {
+      e.preventDefault();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const newScale = getNextZoomLevel(
+        scale,
+        e.deltaY < 0,
+        ALLOWED_ZOOM_LEVELS
+      );
+      if (newScale === scale) return;
+
+      const newOffset = calculateZoom(
+        mouseX,
+        mouseY,
+        offset,
+        scale,
+        newScale,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      setScale(newScale);
+      setOffset(newOffset);
+    },
+    [scale, offset]
+  );
+
+  const handleTouchStart = useCallback(
+    (e) => {
+      const touch = e.touches[0];
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Check if touch is on zoom buttons
       if (x >= 10 && x <= 40) {
         if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
           const zoomIn = y < 160;
@@ -203,15 +349,54 @@ const MapCanvas = () => {
       }
 
       setIsDragging(true);
-      setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      setDragStart({
+        x: touch.clientX - offset.x,
+        y: touch.clientY - offset.y,
+      });
       tempOffsetRef.current = offset;
+
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        lastTouchDistance.current = distance;
+      }
     },
     [offset, scale]
   );
 
-  // Include other event handlers (handleMouseMove, handleMouseUp, etc.)
-  // ... [Previous event handlers remain the same, just update their function calls
-  // to use the new utility functions and managers]
+  const handleTouchMove = useCallback(
+    (e) => {
+      const now = Date.now();
+      if (now - lastTouchMoveTime.current < 16) {
+        return;
+      }
+      lastTouchMoveTime.current = now;
+
+      if (e.touches.length === 2) {
+        e.preventDefault();
+      } else if (e.touches.length === 1 && isDragging) {
+        const touch = e.touches[0];
+        tempOffsetRef.current = {
+          x: touch.clientX - dragStart.x,
+          y: touch.clientY - dragStart.y,
+        };
+        requestAnimationFrame(drawGrid);
+      }
+    },
+    [isDragging, dragStart, drawGrid]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (isDragging) {
+      setOffset(tempOffsetRef.current);
+      setIsDragging(false);
+    }
+    lastTouchDistance.current = null;
+  }, [isDragging]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

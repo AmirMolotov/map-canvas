@@ -7,18 +7,21 @@ export const screenToIso = (
   canvasWidth,
   canvasHeight
 ) => {
+  // Adjust coordinates relative to canvas center and offset
   const x = screenX - currentOffset.x - canvasWidth / 2;
   const y = screenY - currentOffset.y - canvasHeight / 4;
 
   const tileWidth = 30 * currentScale;
   const tileHeight = 15 * currentScale;
 
+  // Convert to isometric coordinates
   const isoX = (x / tileWidth + y / tileHeight) / 2;
   const isoY = (y / tileHeight - x / tileWidth) / 2;
 
+  // Round to nearest integer to ensure consistent cell coordinates
   return {
-    x: Math.floor(isoX),
-    y: Math.floor(isoY),
+    x: Math.round(isoX),
+    y: Math.round(isoY),
   };
 };
 
@@ -72,4 +75,37 @@ export const calculateZoom = (
     x: offset.x + (mouseX - newScreenX),
     y: offset.y + (mouseY - newScreenY),
   };
+};
+
+// Helper function to check if a point is inside a cell's bounds
+export const isPointInCell = (
+  pointX,
+  pointY,
+  cellX,
+  cellY,
+  scale,
+  canvasWidth,
+  canvasHeight
+) => {
+  const { x: screenX, y: screenY } = isoToScreen(
+    cellX,
+    cellY,
+    { x: 0, y: 0 },
+    scale,
+    canvasWidth,
+    canvasHeight
+  );
+
+  const tileWidth = 30 * scale;
+  const tileHeight = 15 * scale;
+
+  // Convert point to local cell coordinates
+  const localX = pointX - screenX;
+  const localY = pointY - screenY;
+
+  // Check if point is inside diamond shape
+  return (
+    Math.abs(localX / (tileWidth / 2)) + Math.abs(localY / (tileHeight / 2)) <=
+    1
+  );
 };
