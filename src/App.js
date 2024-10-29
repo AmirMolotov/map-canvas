@@ -1,12 +1,15 @@
 import React from "react";
 import "./App.css";
 import MapCanvas from "./components/map/MapCanvas";
+import { CellProvider } from "./context/CellContext";
 
 function App() {
   return (
-    <div className="App">
-      <MapCanvas />
-    </div>
+    <CellProvider>
+      <div className="App">
+        <MapCanvas />
+      </div>
+    </CellProvider>
   );
 }
 

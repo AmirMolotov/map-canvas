@@ -4,6 +4,7 @@ import tonBlockImage from "../../assets/ton-block-lines.png";
 import lockBlockImage from "../../assets/lock-block.png";
 import userBlockImage from "../../assets/user-block.png";
 import MapModal from "./MapModal";
+import { useCellData } from "../../context/CellContext";
 
 import {
   INITIAL_OFFSET,
@@ -22,6 +23,12 @@ import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
 
 const MapCanvas = () => {
+  const {
+    setClickedUserData,
+    setClickedLockData,
+    setClickedMineData,
+    setClickedEmptyCell,
+  } = useCellData();
   const canvasRef = useRef(null);
   const [scale, setScale] = useState(INITIAL_SCALE);
   const [offset, setOffset] = useState(INITIAL_OFFSET);
@@ -36,18 +43,42 @@ const MapCanvas = () => {
   const lastHoveredCellRef = useRef(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
-  const [mapStyle, setMapStyle] = useState("standard");
   const dragThreshold = useRef(5);
   const mouseDownPos = useRef(null);
   const touchStartPos = useRef(null);
   const touchStartTime = useRef(null);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
-  const chunkManager = useRef(new ChunkManager());
+  const chunkManager = useRef(
+    new ChunkManager(
+      setClickedUserData,
+      setClickedLockData,
+      setClickedMineData,
+      setClickedEmptyCell
+    )
+  );
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
-  // Add device detection
+  const getCellFromEvent = useCallback(
+    (clientX, clientY) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const currentOffset = isDragging ? tempOffsetRef.current : offset;
+      return screenToIso(
+        x,
+        y,
+        currentOffset,
+        scale,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+    },
+    [isDragging, offset, scale]
+  );
+
   useEffect(() => {
     const checkMobile = () => {
       const mediaQuery = window.matchMedia("(max-width: 1024px)");
@@ -86,29 +117,6 @@ const MapCanvas = () => {
       setIsLoadingChunk
     );
   }, []);
-
-  const getCellColor = (x, y) => {
-    switch (mapStyle) {
-      case "satellite":
-        return `hsl(${Math.abs(x * 20 + y * 20) % 360}, 70%, 40%)`;
-      case "terrain":
-        return `hsl(120, ${30 + (Math.abs(x + y) % 40)}%, ${
-          40 + (Math.abs(x - y) % 30)
-        }%)`;
-      case "standard":
-      default:
-        const sum = Math.abs(x + y);
-        if (sum % 3 === 0) return "#FF0000";
-        if (sum % 3 === 1) return "#00FF00";
-        return "#0000FF";
-    }
-  };
-
-  const handleStyleSelect = (style) => {
-    setMapStyle(style);
-    setIsModalOpen(false);
-    drawGrid();
-  };
 
   const drawGrid = useCallback(() => {
     if (!canvasRef.current || !imageLoader.current.isLoaded()) return;
@@ -192,8 +200,7 @@ const MapCanvas = () => {
         ) {
           const pointType = pointMap.get(`${x},${y}`);
           const image = imageLoader.current.getPointImage(pointType);
-          const color = getCellColor(x, y);
-          renderer.drawCell(screenX, screenY, image, scale, color);
+          renderer.drawCell(screenX, screenY, image, scale);
         }
       }
     }
@@ -206,11 +213,12 @@ const MapCanvas = () => {
       isLoadingChunk
     );
     renderer.drawZoomControls(scale, ALLOWED_ZOOM_LEVELS);
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapStyle]);
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
 
-  const openModal = () => {
-    if (!isDragging) {
-      setSelectedCell(hoveredCell);
+  const openModal = (cell) => {
+    if (!isDragging && cell) {
+      chunkManager.current.handlePointClick(cell.x, cell.y);
+      setSelectedCell(cell);
       setTimeout(() => {
         setIsModalOpen(true);
       }, 100);
@@ -219,7 +227,7 @@ const MapCanvas = () => {
 
   const handleMouseDown = useCallback(
     (e) => {
-      if (isMobileDevice) return; // Skip if mobile device
+      if (isMobileDevice) return;
 
       const rect = canvasRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -248,15 +256,18 @@ const MapCanvas = () => {
         }
       }
 
+      const cell = getCellFromEvent(e.clientX, e.clientY);
+      setHoveredCell(cell);
+
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
     },
-    [offset, scale, isMobileDevice]
+    [offset, scale, isMobileDevice, getCellFromEvent]
   );
 
   const handleMouseMove = useCallback(
     (e) => {
-      if (isMobileDevice) return; // Skip if mobile device
+      if (isMobileDevice) return;
 
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -272,15 +283,7 @@ const MapCanvas = () => {
         }
       }
 
-      const currentOffset = isDragging ? tempOffsetRef.current : offset;
-      const newCell = screenToIso(
-        mouseX,
-        mouseY,
-        currentOffset,
-        scale,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
+      const newCell = getCellFromEvent(e.clientX, e.clientY);
 
       const lastCell = lastHoveredCellRef.current;
       if (!lastCell || lastCell.x !== newCell.x || lastCell.y !== newCell.y) {
@@ -298,18 +301,27 @@ const MapCanvas = () => {
         drawGrid();
       }
     },
-    [isDragging, dragStart, drawGrid, offset, scale, isMobileDevice]
+    [
+      isDragging,
+      dragStart,
+      drawGrid,
+      offset,
+      scale,
+      isMobileDevice,
+      getCellFromEvent,
+    ]
   );
 
   const handleMouseUp = useCallback(
     (e) => {
-      if (isMobileDevice) return; // Skip if mobile device
+      if (isMobileDevice) return;
 
       if (!isDragging && mouseDownPos.current) {
         const deltaX = Math.abs(e.clientX - mouseDownPos.current.x);
         const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
         if (deltaX < dragThreshold.current && deltaY < dragThreshold.current) {
-          openModal();
+          const cell = getCellFromEvent(e.clientX, e.clientY);
+          openModal(cell);
         }
       }
 
@@ -320,11 +332,11 @@ const MapCanvas = () => {
       setIsDragging(false);
       mouseDownPos.current = null;
     },
-    [isDragging, isMobileDevice]
+    [isDragging, isMobileDevice, getCellFromEvent]
   );
 
   const handleMouseLeave = useCallback(() => {
-    if (isMobileDevice) return; // Skip if mobile device
+    if (isMobileDevice) return;
 
     setHoveredCell(null);
     setLastMousePos(null);
@@ -335,7 +347,7 @@ const MapCanvas = () => {
 
   const handleWheel = useCallback(
     (e) => {
-      if (isMobileDevice) return; // Skip if mobile device
+      if (isMobileDevice) return;
 
       e.preventDefault();
       const rect = canvasRef.current.getBoundingClientRect();
@@ -367,7 +379,7 @@ const MapCanvas = () => {
 
   const handleTouchStart = useCallback(
     (e) => {
-      if (!isMobileDevice) return; // Skip if not mobile device
+      if (!isMobileDevice) return;
 
       const touch = e.touches[0];
       const rect = canvasRef.current.getBoundingClientRect();
@@ -377,17 +389,8 @@ const MapCanvas = () => {
       touchStartPos.current = { x: touch.clientX, y: touch.clientY };
       touchStartTime.current = Date.now();
 
-      // Update hovered cell for touch
-      const currentOffset = isDragging ? tempOffsetRef.current : offset;
-      const newCell = screenToIso(
-        x,
-        y,
-        currentOffset,
-        scale,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
-      setHoveredCell(newCell);
+      const cell = getCellFromEvent(touch.clientX, touch.clientY);
+      setHoveredCell(cell);
 
       if (x >= 10 && x <= 40) {
         if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
@@ -426,12 +429,12 @@ const MapCanvas = () => {
         lastTouchDistance.current = distance;
       }
     },
-    [offset, scale, isDragging, isMobileDevice]
+    [offset, scale, isDragging, isMobileDevice, getCellFromEvent]
   );
 
   const handleTouchMove = useCallback(
     (e) => {
-      if (!isMobileDevice) return; // Skip if not mobile device
+      if (!isMobileDevice) return;
 
       const now = Date.now();
       if (now - lastTouchMoveTime.current < 16) {
@@ -464,15 +467,15 @@ const MapCanvas = () => {
 
   const handleTouchEnd = useCallback(
     (e) => {
-      if (!isMobileDevice) return; // Skip if not mobile device
+      if (!isMobileDevice) return;
 
       if (!isDragging && touchStartPos.current) {
         const touchEndTime = Date.now();
         const touchDuration = touchEndTime - touchStartTime.current;
 
-        // Only open modal for short taps (less than 200ms)
         if (touchDuration < 200) {
-          openModal();
+          const cell = hoveredCell;
+          openModal(cell);
         }
       }
 
@@ -485,7 +488,7 @@ const MapCanvas = () => {
       touchStartTime.current = null;
       lastTouchDistance.current = null;
     },
-    [isDragging, isMobileDevice]
+    [isDragging, isMobileDevice, hoveredCell]
   );
 
   useEffect(() => {
@@ -523,11 +526,7 @@ const MapCanvas = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       />
-      <MapModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onStyleSelect={handleStyleSelect}
-      />
+      <MapModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
 };

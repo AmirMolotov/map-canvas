@@ -2,10 +2,22 @@ import axios from "axios";
 import { CHUNK_SIZE, MAX_RANGE } from "./constants";
 
 export class ChunkManager {
-  constructor() {
+  constructor(
+    setClickedUserData,
+    setClickedLockData,
+    setClickedMineData,
+    setClickedEmptyCell
+  ) {
     this.loadedChunks = new Set();
     this.loadingChunks = new Set();
     this.points = [];
+    this.usersData = new Map();
+    this.locksData = new Map();
+    this.minesData = new Map();
+    this.setClickedUserData = setClickedUserData;
+    this.setClickedLockData = setClickedLockData;
+    this.setClickedMineData = setClickedMineData;
+    this.setClickedEmptyCell = setClickedEmptyCell;
   }
 
   getChunkKey(chunkX, chunkY) {
@@ -57,30 +69,45 @@ export class ChunkManager {
 
         if (response.data[1]?.users) {
           response.data[1].users.forEach((user) => {
-            processedPoints.push({
+            const point = {
               x: user.x_location,
               y: user.y_location,
               type: "user",
-            });
+              userData: user,
+            };
+            processedPoints.push(point);
+            this.usersData.set(`${user.x_location},${user.y_location}`, user);
           });
         }
 
         if (response.data[2]?.mines) {
           response.data[2].mines.forEach((mine) => {
-            processedPoints.push({
+            const point = {
               x: mine.x_location,
               y: mine.y_location,
               type: "mine",
+            };
+            processedPoints.push(point);
+            this.minesData.set(`${mine.x_location},${mine.y_location}`, {
+              id: mine.id,
+              x: mine.x_location,
+              y: mine.y_location,
             });
           });
         }
 
         if (response.data[3]?.locks) {
           response.data[3].locks.forEach((lock) => {
-            processedPoints.push({
+            const point = {
               x: lock.x_location,
               y: lock.y_location,
               type: "lock",
+            };
+            processedPoints.push(point);
+            this.locksData.set(`${lock.x_location},${lock.y_location}`, {
+              id: lock.id,
+              x: lock.x_location,
+              y: lock.y_location,
             });
           });
         }
@@ -95,6 +122,23 @@ export class ChunkManager {
       if (this.loadingChunks.size === 0) {
         onLoadingStateChange(false);
       }
+    }
+  }
+
+  handlePointClick(x, y) {
+    const key = `${x},${y}`;
+    const userData = this.usersData.get(key);
+    const lockData = this.locksData.get(key);
+    const mineData = this.minesData.get(key);
+
+    if (userData && this.setClickedUserData) {
+      this.setClickedUserData(userData);
+    } else if (lockData && this.setClickedLockData) {
+      this.setClickedLockData(lockData);
+    } else if (mineData && this.setClickedMineData) {
+      this.setClickedMineData(mineData);
+    } else if (this.setClickedEmptyCell) {
+      this.setClickedEmptyCell(x, y);
     }
   }
 
@@ -152,7 +196,23 @@ export class ChunkManager {
     this.points = this.points.filter((point) => {
       const pointChunkX = Math.floor(point.x / CHUNK_SIZE);
       const pointChunkY = Math.floor(point.y / CHUNK_SIZE);
-      return visibleChunksSet.has(this.getChunkKey(pointChunkX, pointChunkY));
+      const isVisible = visibleChunksSet.has(
+        this.getChunkKey(pointChunkX, pointChunkY)
+      );
+
+      // Clear data if point is not visible
+      if (!isVisible) {
+        const key = `${point.x},${point.y}`;
+        if (point.type === "user") {
+          this.usersData.delete(key);
+        } else if (point.type === "lock") {
+          this.locksData.delete(key);
+        } else if (point.type === "mine") {
+          this.minesData.delete(key);
+        }
+      }
+
+      return isVisible;
     });
 
     // Clear loaded chunks that are no longer visible
