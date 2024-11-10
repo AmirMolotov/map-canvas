@@ -7,7 +7,7 @@ export const ALLOWED_ZOOM_LEVELS = [8, 6, 4];
 
 // Initial state
 export const INITIAL_OFFSET = { x: 0, y: 0 };
-export const INITIAL_SCALE = 6;
+export const INITIAL_SCALE = 10;
 
 // UI Constants
 export const ZOOM_BUTTON_DIMENSIONS = {

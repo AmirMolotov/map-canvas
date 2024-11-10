@@ -65,11 +65,12 @@ const MapCanvas = () => {
       const rect = canvasRef.current.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
+      const pixelRatio = window.devicePixelRatio || 1;
 
       const currentOffset = isDragging ? tempOffsetRef.current : offset;
       return screenToIso(
-        x,
-        y,
+        x * pixelRatio,
+        y * pixelRatio,
         currentOffset,
         scale,
         canvasRef.current.width,
@@ -493,13 +494,24 @@ const MapCanvas = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    // Set the canvas size in actual pixels
+    canvas.width = window.innerWidth * pixelRatio;
+    canvas.height = window.innerHeight * pixelRatio;
+
+    // Set the canvas display size
+    canvas.style.width = `${window.innerWidth}px`;
+    canvas.style.height = `${window.innerHeight}px`;
+
     drawGrid();
 
     const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // Update canvas size with pixel ratio on resize
+      canvas.width = window.innerWidth * pixelRatio;
+      canvas.height = window.innerHeight * pixelRatio;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
       drawGrid();
     };
 
@@ -516,6 +528,8 @@ const MapCanvas = () => {
           touchAction: "none",
           backgroundColor: "#000000",
           display: "block",
+          width: "100%",
+          height: "100%",
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

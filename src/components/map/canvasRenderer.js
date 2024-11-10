@@ -4,12 +4,30 @@ export class CanvasRenderer {
   constructor(canvas, imageLoader) {
     this.canvas = canvas;
     this.imageLoader = imageLoader;
+
+    // Get the device pixel ratio
+    this.pixelRatio = window.devicePixelRatio || 1;
+
+    // Set up high DPI canvas
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * this.pixelRatio;
+    canvas.height = rect.height * this.pixelRatio;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
     this.ctx = canvas.getContext("2d");
+    // Scale all drawing operations by the pixel ratio
+    this.ctx.scale(this.pixelRatio, this.pixelRatio);
   }
 
   drawBackground() {
     this.ctx.fillStyle = "#000000";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(
+      0,
+      0,
+      this.canvas.width / this.pixelRatio,
+      this.canvas.height / this.pixelRatio
+    );
   }
 
   drawCell(x, y, image, scale, color = null) {
