@@ -60,6 +60,37 @@ const MapCanvas = () => {
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
+  const isClickWithinCell = useCallback(
+    (x, y, cellX, cellY) => {
+      const tileWidth = 402 * scale;
+      const tileHeight = 285 * scale;
+
+      // Get screen coordinates of the cell
+      const { x: screenX, y: screenY } = isoToScreen(
+        cellX,
+        cellY,
+        isDragging ? tempOffsetRef.current : offset,
+        scale,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      // Define the clickable area (rhombus shape)
+      // Using 0.15 as a factor to make the clickable area match the blue rhombus outline exactly
+      const halfWidth = tileWidth * 0.3;
+      const halfHeight = tileHeight * 0.3;
+
+      // Translate click coordinates relative to cell center
+      const relX = x - screenX;
+      const relY = y - screenY;
+
+      // Check if point is within rhombus shape using a more precise diamond equation
+      // Using absolute values to create a diamond shape
+      return Math.abs(relX / halfWidth) + Math.abs(relY / halfHeight) <= 1;
+    },
+    [scale, offset, isDragging]
+  );
+
   const getCellFromEvent = useCallback(
     (clientX, clientY) => {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -68,7 +99,7 @@ const MapCanvas = () => {
       const pixelRatio = window.devicePixelRatio || 1;
 
       const currentOffset = isDragging ? tempOffsetRef.current : offset;
-      return screenToIso(
+      const cell = screenToIso(
         x * pixelRatio,
         y * pixelRatio,
         currentOffset,
@@ -76,8 +107,14 @@ const MapCanvas = () => {
         canvasRef.current.width,
         canvasRef.current.height
       );
+
+      // Only return the cell if the click is within its bounds
+      if (isClickWithinCell(x * pixelRatio, y * pixelRatio, cell.x, cell.y)) {
+        return cell;
+      }
+      return null;
     },
-    [isDragging, offset, scale]
+    [isDragging, offset, scale, isClickWithinCell]
   );
 
   useEffect(() => {
@@ -258,7 +295,9 @@ const MapCanvas = () => {
       }
 
       const cell = getCellFromEvent(e.clientX, e.clientY);
-      setHoveredCell(cell);
+      if (cell) {
+        setHoveredCell(cell);
+      }
 
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
@@ -287,7 +326,10 @@ const MapCanvas = () => {
       const newCell = getCellFromEvent(e.clientX, e.clientY);
 
       const lastCell = lastHoveredCellRef.current;
-      if (!lastCell || lastCell.x !== newCell.x || lastCell.y !== newCell.y) {
+      if (
+        !lastCell ||
+        (newCell && (lastCell.x !== newCell.x || lastCell.y !== newCell.y))
+      ) {
         lastHoveredCellRef.current = newCell;
         setHoveredCell(newCell);
       }
@@ -391,7 +433,9 @@ const MapCanvas = () => {
       touchStartTime.current = Date.now();
 
       const cell = getCellFromEvent(touch.clientX, touch.clientY);
-      setHoveredCell(cell);
+      if (cell) {
+        setHoveredCell(cell);
+      }
 
       if (x >= 10 && x <= 40) {
         if ((y >= 120 && y <= 150) || (y >= 160 && y <= 190)) {
