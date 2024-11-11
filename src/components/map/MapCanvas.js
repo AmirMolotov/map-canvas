@@ -12,6 +12,7 @@ import {
   MOBILE_INITIAL_SCALE,
   ALLOWED_ZOOM_LEVELS,
   MOBILE_ZOOM_LEVELS,
+  MOBILE_PAN_SPEED_MULTIPLIER,
   CHUNK_SIZE,
 } from "./constants";
 import {
@@ -25,6 +26,8 @@ import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
 
 const MapCanvas = () => {
+  // ... (previous code remains the same until handleTouchMove)
+
   const {
     setClickedUserData,
     setClickedLockData,
@@ -447,7 +450,6 @@ const MapCanvas = () => {
     },
     [offset, isDragging, isMobileDevice, getCellFromEvent]
   );
-
   const handleTouchMove = useCallback(
     (e) => {
       if (!isMobileDevice) return;
@@ -516,10 +518,19 @@ const MapCanvas = () => {
         }
 
         if (isDragging) {
+          const movementX =
+            (touch.clientX - touchStartPos.current.x) *
+            MOBILE_PAN_SPEED_MULTIPLIER;
+          const movementY =
+            (touch.clientY - touchStartPos.current.y) *
+            MOBILE_PAN_SPEED_MULTIPLIER;
+
           tempOffsetRef.current = {
-            x: touch.clientX - dragStart.x,
-            y: touch.clientY - dragStart.y,
+            x: tempOffsetRef.current.x + movementX,
+            y: tempOffsetRef.current.y + movementY,
           };
+
+          touchStartPos.current = { x: touch.clientX, y: touch.clientY };
           requestAnimationFrame(drawGrid);
         }
       }
@@ -534,6 +545,8 @@ const MapCanvas = () => {
       getCurrentZoomLevels,
     ]
   );
+
+  // ... (rest of the component remains the same)
 
   const handleTouchEnd = useCallback(
     (e) => {
