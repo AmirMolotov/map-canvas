@@ -190,8 +190,8 @@ const MapCanvas = () => {
           canvas.height
         );
 
-        const tileWidth = 60 * scale;
-        const tileHeight = 30 * scale;
+        const tileWidth = 402 * scale;
+        const tileHeight = 285 * scale;
 
         if (
           screenX > -tileWidth &&

@@ -11,8 +11,8 @@ export const screenToIso = (
   const x = screenX - currentOffset.x - canvasWidth / 2;
   const y = screenY - currentOffset.y - canvasHeight / 4;
 
-  const tileWidth = 30 * currentScale;
-  const tileHeight = 15 * currentScale;
+  const tileWidth = 201 * currentScale; // Half of 402
+  const tileHeight = 142.5 * currentScale; // Half of 285
 
   // Convert to isometric coordinates
   const isoX = (x / tileWidth + y / tileHeight) / 2;
@@ -34,8 +34,8 @@ export const isoToScreen = (
   canvasWidth,
   canvasHeight
 ) => {
-  const screenX = (x - y) * 30 * currentScale;
-  const screenY = (x + y) * 15 * currentScale;
+  const screenX = (x - y) * 201 * currentScale; // Half of 402
+  const screenY = (x + y) * 142.5 * currentScale; // Half of 285
   return {
     x: screenX + currentOffset.x + canvasWidth / 2,
     y: screenY + currentOffset.y + canvasHeight / 4,
@@ -96,8 +96,8 @@ export const isPointInCell = (
     canvasHeight
   );
 
-  const tileWidth = 30 * scale;
-  const tileHeight = 15 * scale;
+  const tileWidth = 201 * scale; // Half of 402
+  const tileHeight = 142.5 * scale; // Half of 285
 
   // Convert point to local cell coordinates
   const localX = pointX - screenX;

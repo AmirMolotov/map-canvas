@@ -31,8 +31,8 @@ export class CanvasRenderer {
   }
 
   drawCell(x, y, image, scale, color = null) {
-    const tileWidth = 60 * scale;
-    const tileHeight = 30 * scale;
+    const tileWidth = 402 * scale;
+    const tileHeight = 285 * scale;
 
     this.ctx.save();
     this.ctx.translate(x, y);
