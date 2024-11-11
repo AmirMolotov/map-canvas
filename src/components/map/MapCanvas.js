@@ -9,7 +9,9 @@ import { useCellData } from "../../context/CellContext";
 import {
   INITIAL_OFFSET,
   INITIAL_SCALE,
+  MOBILE_INITIAL_SCALE,
   ALLOWED_ZOOM_LEVELS,
+  MOBILE_ZOOM_LEVELS,
   CHUNK_SIZE,
 } from "./constants";
 import {
@@ -30,6 +32,7 @@ const MapCanvas = () => {
     setClickedEmptyCell,
   } = useCellData();
   const canvasRef = useRef(null);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [scale, setScale] = useState(INITIAL_SCALE);
   const [offset, setOffset] = useState(INITIAL_OFFSET);
   const [isDragging, setIsDragging] = useState(false);
@@ -48,7 +51,6 @@ const MapCanvas = () => {
   const mouseDownPos = useRef(null);
   const touchStartPos = useRef(null);
   const touchStartTime = useRef(null);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const isMultiTouch = useRef(false);
 
   const chunkManager = useRef(
@@ -62,12 +64,29 @@ const MapCanvas = () => {
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      const mediaQuery = window.matchMedia("(max-width: 1024px)");
+      const isMobile = mediaQuery.matches;
+      setIsMobileDevice(isMobile);
+      // Set initial scale based on device type
+      setScale(isMobile ? MOBILE_INITIAL_SCALE : INITIAL_SCALE);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const getCurrentZoomLevels = useCallback(() => {
+    return isMobileDevice ? MOBILE_ZOOM_LEVELS : ALLOWED_ZOOM_LEVELS;
+  }, [isMobileDevice]);
+
   const isClickWithinCell = useCallback(
     (x, y, cellX, cellY) => {
       const tileWidth = 402 * scale;
       const tileHeight = 285 * scale;
 
-      // Get screen coordinates of the cell
       const { x: screenX, y: screenY } = isoToScreen(
         cellX,
         cellY,
@@ -77,17 +96,12 @@ const MapCanvas = () => {
         canvasRef.current.height
       );
 
-      // Define the clickable area (rhombus shape)
-      // Using 0.15 as a factor to make the clickable area match the blue rhombus outline exactly
       const halfWidth = tileWidth * 0.3;
       const halfHeight = tileHeight * 0.3;
 
-      // Translate click coordinates relative to cell center
       const relX = x - screenX;
       const relY = y - screenY;
 
-      // Check if point is within rhombus shape using a more precise diamond equation
-      // Using absolute values to create a diamond shape
       return Math.abs(relX / halfWidth) + Math.abs(relY / halfHeight) <= 1;
     },
     [scale, offset, isDragging]
@@ -110,7 +124,6 @@ const MapCanvas = () => {
         canvasRef.current.height
       );
 
-      // Only return the cell if the click is within its bounds
       if (isClickWithinCell(x * pixelRatio, y * pixelRatio, cell.x, cell.y)) {
         return cell;
       }
@@ -118,17 +131,6 @@ const MapCanvas = () => {
     },
     [isDragging, offset, scale, isClickWithinCell]
   );
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const mediaQuery = window.matchMedia("(max-width: 1024px)");
-      setIsMobileDevice(mediaQuery.matches);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   useEffect(() => {
     imageLoader.current.loadImages({
@@ -387,7 +389,7 @@ const MapCanvas = () => {
       const newScale = getNextZoomLevel(
         scale,
         e.deltaY < 0,
-        ALLOWED_ZOOM_LEVELS
+        getCurrentZoomLevels()
       );
       if (newScale === scale) return;
 
@@ -404,7 +406,7 @@ const MapCanvas = () => {
       setScale(newScale);
       setOffset(newOffset);
     },
-    [scale, offset, isMobileDevice]
+    [scale, offset, isMobileDevice, getCurrentZoomLevels]
   );
 
   const handleTouchStart = useCallback(
@@ -483,7 +485,7 @@ const MapCanvas = () => {
           const newScale = getNextZoomLevel(
             scale,
             zoomingIn,
-            ALLOWED_ZOOM_LEVELS
+            getCurrentZoomLevels()
           );
 
           if (newScale !== scale) {
@@ -522,7 +524,15 @@ const MapCanvas = () => {
         }
       }
     },
-    [isDragging, dragStart, drawGrid, isMobileDevice, scale, offset]
+    [
+      isDragging,
+      dragStart,
+      drawGrid,
+      isMobileDevice,
+      scale,
+      offset,
+      getCurrentZoomLevels,
+    ]
   );
 
   const handleTouchEnd = useCallback(
