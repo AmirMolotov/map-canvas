@@ -8,12 +8,3 @@ export const ALLOWED_ZOOM_LEVELS = [0.8, 0.6, 0.4];
 // Initial state
 export const INITIAL_OFFSET = { x: 0, y: 0 };
 export const INITIAL_SCALE = 0.6;
-
-// UI Constants
-export const ZOOM_BUTTON_DIMENSIONS = {
-  x: 10,
-  y1: 120, // Zoom in button y position
-  y2: 160, // Zoom out button y position
-  width: 30,
-  height: 30,
-};

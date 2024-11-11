@@ -1,5 +1,3 @@
-import { ZOOM_BUTTON_DIMENSIONS } from "./constants";
-
 export class CanvasRenderer {
   constructor(canvas, imageLoader) {
     this.canvas = canvas;
@@ -51,6 +49,29 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
+  drawRedRhombus(x, y, scale) {
+    const tileWidth = 402 * scale;
+    const tileHeight = 285 * scale;
+
+    this.ctx.save();
+    this.ctx.translate(x, y);
+
+    // Draw rhombus
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
+    this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
+    this.ctx.lineTo(0, tileHeight * 0.3); // Bottom point
+    this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
+    this.ctx.closePath();
+
+    // Set rhombus style
+    this.ctx.strokeStyle = "red";
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+
+    this.ctx.restore();
+  }
+
   drawHoverCoordinates(hoveredCell) {
     if (hoveredCell) {
       this.ctx.save();
@@ -85,18 +106,6 @@ export class CanvasRenderer {
       60
     );
     this.ctx.restore();
-  }
-
-  drawZoomControls(scale, allowedZoomLevels) {
-    const canZoomIn = scale < Math.max(...allowedZoomLevels);
-    const canZoomOut = scale > Math.min(...allowedZoomLevels);
-    const { x, y1, y2, width, height } = ZOOM_BUTTON_DIMENSIONS;
-
-    // Draw zoom in button
-    this.drawZoomButton(x, y1, width, height, "+", canZoomIn);
-
-    // Draw zoom out button
-    this.drawZoomButton(x, y2, width, height, "−", canZoomOut);
   }
 
   drawZoomButton(x, y, width, height, symbol, enabled) {
