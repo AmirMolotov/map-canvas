@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import emptyBlockImage from "../../assets/empty-block.png";
-import tonBlockImage from "../../assets/ton-block-lines.png";
+import emptyBlockImage from "../../assets/empty.png";
+import tonBlockImage from "../../assets/mine.png";
 import lockBlockImage from "../../assets/lock-block.png";
 import userBlockImage from "../../assets/user-block.png";
 import MapModal from "./MapModal";
