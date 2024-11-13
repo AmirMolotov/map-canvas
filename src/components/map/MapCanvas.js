@@ -74,11 +74,11 @@ const MapCanvas = () => {
   // Function to check if a cell is within the valid map bounds
   const isValidCell = useCallback((x, y) => {
     return (
-      x >= 0 && x < MAX_MAP_SIZE.width && y >= 0 && y < MAX_MAP_SIZE.height
+      x >= 0 && y >= 0 && x < MAX_MAP_SIZE.width && y < MAX_MAP_SIZE.height
     );
   }, []);
 
-  // Function to correct offset to keep view within valid map bounds
+  // Function to correct offset to prevent panning to negative areas
   const correctOffset = useCallback(
     (currentOffset) => {
       const canvas = canvasRef.current;
@@ -123,14 +123,12 @@ const MapCanvas = () => {
           Math.max(...corners.map((c) => c.y))) /
         2;
 
-      // If the center is outside valid bounds, calculate new offset to move view to nearest valid area
       let newOffset = { ...currentOffset };
 
-      // Handle negative X coordinates - move to closest positive position
+      // Prevent panning to negative coordinates
       if (centerX < 0) {
-        const targetX = Math.min(5, MAX_MAP_SIZE.width / 4); // Move to position 5 or 1/4 of map width, whichever is smaller
         const { x: screenX } = isoToScreen(
-          targetX,
+          0,
           centerY,
           currentOffset,
           scale,
@@ -152,12 +150,11 @@ const MapCanvas = () => {
         newOffset.x += canvas.width / 2 - screenX;
       }
 
-      // Handle negative Y coordinates - move to closest positive position
+      // Prevent panning to negative coordinates
       if (centerY < 0) {
-        const targetY = Math.min(5, MAX_MAP_SIZE.height / 4); // Move to position 5 or 1/4 of map height, whichever is smaller
         const { y: screenY } = isoToScreen(
           centerX,
-          targetY,
+          0,
           currentOffset,
           scale,
           canvas.width,
@@ -323,6 +320,7 @@ const MapCanvas = () => {
     const points = chunkManager.current.getPoints();
     const pointMap = new Map(points.map((p) => [`${p.x},${p.y}`, p.type]));
 
+    // Calculate view corners
     const corners = [
       screenToIso(0, 0, currentOffset, scale, canvas.width, canvas.height),
       screenToIso(
@@ -351,18 +349,23 @@ const MapCanvas = () => {
       ),
     ];
 
+    // Calculate bounds
     const bounds = {
-      minX: Math.max(0, Math.floor(Math.min(...corners.map((c) => c.x)))), // Ensure minX is never negative
-      maxX: Math.ceil(Math.max(...corners.map((c) => c.x))),
-      minY: Math.max(0, Math.floor(Math.min(...corners.map((c) => c.y)))), // Ensure minY is never negative
-      maxY: Math.ceil(Math.max(...corners.map((c) => c.y))),
+      minX: Math.floor(Math.min(...corners.map((c) => c.x))),
+      maxX: Math.min(
+        MAX_MAP_SIZE.width - 1,
+        Math.ceil(Math.max(...corners.map((c) => c.x)))
+      ),
+      minY: Math.floor(Math.min(...corners.map((c) => c.y))),
+      maxY: Math.min(
+        MAX_MAP_SIZE.height - 1,
+        Math.ceil(Math.max(...corners.map((c) => c.y)))
+      ),
     };
 
+    // Render all visible cells
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
       for (let y = bounds.minY; y <= bounds.maxY; y++) {
-        // Skip negative coordinates
-        if (x < 0 || y < 0) continue;
-
         const { x: screenX, y: screenY } = isoToScreen(
           x,
           y,
@@ -385,7 +388,7 @@ const MapCanvas = () => {
           const image = imageLoader.current.getPointImage(pointType);
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          const isReachable = isValidCell(x, y);
+          const isReachable = x >= 0 && y >= 0; // Cells with negative coordinates are not reachable
           renderer.drawCell(
             screenX,
             screenY,
@@ -405,7 +408,7 @@ const MapCanvas = () => {
       validChunks.length,
       isLoadingChunk
     );
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, isValidCell]);
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
 
   const handleMouseDown = useCallback(
     (e) => {
