@@ -126,9 +126,11 @@ const MapCanvas = () => {
       // If the center is outside valid bounds, calculate new offset to move view to nearest valid area
       let newOffset = { ...currentOffset };
 
+      // Handle negative X coordinates - move to closest positive position
       if (centerX < 0) {
+        const targetX = Math.min(5, MAX_MAP_SIZE.width / 4); // Move to position 5 or 1/4 of map width, whichever is smaller
         const { x: screenX } = isoToScreen(
-          0,
+          targetX,
           centerY,
           currentOffset,
           scale,
@@ -136,7 +138,9 @@ const MapCanvas = () => {
           canvas.height
         );
         newOffset.x += canvas.width / 2 - screenX;
-      } else if (centerX >= MAX_MAP_SIZE.width) {
+      }
+      // Handle X coordinates beyond max width
+      else if (centerX >= MAX_MAP_SIZE.width) {
         const { x: screenX } = isoToScreen(
           MAX_MAP_SIZE.width - 1,
           centerY,
@@ -148,17 +152,21 @@ const MapCanvas = () => {
         newOffset.x += canvas.width / 2 - screenX;
       }
 
+      // Handle negative Y coordinates - move to closest positive position
       if (centerY < 0) {
+        const targetY = Math.min(5, MAX_MAP_SIZE.height / 4); // Move to position 5 or 1/4 of map height, whichever is smaller
         const { y: screenY } = isoToScreen(
           centerX,
-          0,
+          targetY,
           currentOffset,
           scale,
           canvas.width,
           canvas.height
         );
         newOffset.y += canvas.height / 2 - screenY;
-      } else if (centerY >= MAX_MAP_SIZE.height) {
+      }
+      // Handle Y coordinates beyond max height
+      else if (centerY >= MAX_MAP_SIZE.height) {
         const { y: screenY } = isoToScreen(
           centerX,
           MAX_MAP_SIZE.height - 1,
@@ -298,9 +306,16 @@ const MapCanvas = () => {
       scale,
       canvas
     );
-    chunkManager.current.clearNonVisibleChunks(visibleChunks);
 
-    visibleChunks.forEach((chunkKey) => {
+    // Filter out chunks with negative coordinates
+    const validChunks = visibleChunks.filter((chunkKey) => {
+      const [chunkX, chunkY] = chunkKey.split(",").map(Number);
+      return chunkX >= 0 && chunkY >= 0;
+    });
+
+    chunkManager.current.clearNonVisibleChunks(validChunks);
+
+    validChunks.forEach((chunkKey) => {
       const [chunkX, chunkY] = chunkKey.split(",").map(Number);
       chunkManager.current.loadChunkData(chunkX, chunkY, setIsLoadingChunk);
     });
@@ -337,14 +352,17 @@ const MapCanvas = () => {
     ];
 
     const bounds = {
-      minX: Math.floor(Math.min(...corners.map((c) => c.x))),
+      minX: Math.max(0, Math.floor(Math.min(...corners.map((c) => c.x)))), // Ensure minX is never negative
       maxX: Math.ceil(Math.max(...corners.map((c) => c.x))),
-      minY: Math.floor(Math.min(...corners.map((c) => c.y))),
+      minY: Math.max(0, Math.floor(Math.min(...corners.map((c) => c.y)))), // Ensure minY is never negative
       maxY: Math.ceil(Math.max(...corners.map((c) => c.y))),
     };
 
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
       for (let y = bounds.minY; y <= bounds.maxY; y++) {
+        // Skip negative coordinates
+        if (x < 0 || y < 0) continue;
+
         const { x: screenX, y: screenY } = isoToScreen(
           x,
           y,
@@ -384,7 +402,7 @@ const MapCanvas = () => {
     renderer.drawBounds(bounds);
     renderer.drawChunkInfo(
       chunkManager.current.getLoadedChunksCount(),
-      visibleChunks.length,
+      validChunks.length,
       isLoadingChunk
     );
   }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, isValidCell]);
