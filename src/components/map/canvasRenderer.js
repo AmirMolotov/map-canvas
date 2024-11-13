@@ -28,7 +28,7 @@ export class CanvasRenderer {
     );
   }
 
-  drawCell(x, y, image, scale, isHovered = false) {
+  drawCell(x, y, image, scale, isHovered = false, isReachable = true) {
     const tileWidth = 402 * scale;
     const tileHeight = 285 * scale;
 
@@ -44,9 +44,21 @@ export class CanvasRenderer {
       tileHeight
     );
 
-    // If cell is hovered, draw a semi-transparent blue overlay
+    // Draw hover effect if cell is hovered
     if (isHovered) {
       this.ctx.fillStyle = "rgba(0, 100, 255, 0.3)";
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
+      this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
+      this.ctx.lineTo(0, tileHeight * 0.3); // Bottom point
+      this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
+
+    // Draw dark overlay for unreachable areas
+    if (!isReachable) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
       this.ctx.lineTo(tileWidth * 0.3, 0); // Right point

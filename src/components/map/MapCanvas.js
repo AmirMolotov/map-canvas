@@ -25,6 +25,12 @@ import { ChunkManager } from "./chunkManager";
 import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
 
+// Define the maximum map dimensions
+const MAX_MAP_SIZE = {
+  width: 100,
+  height: 100,
+};
+
 const MapCanvas = () => {
   const {
     setClickedUserData,
@@ -65,23 +71,109 @@ const MapCanvas = () => {
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
-  useEffect(() => {
-    const checkMobile = () => {
-      const mediaQuery = window.matchMedia("(max-width: 1024px)");
-      const isMobile = mediaQuery.matches;
-      setIsMobileDevice(isMobile);
-      // Set initial scale based on device type
-      setScale(isMobile ? MOBILE_INITIAL_SCALE : INITIAL_SCALE);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+  // Function to check if a cell is within the valid map bounds
+  const isValidCell = useCallback((x, y) => {
+    return (
+      x >= 0 && x < MAX_MAP_SIZE.width && y >= 0 && y < MAX_MAP_SIZE.height
+    );
   }, []);
 
-  const getCurrentZoomLevels = useCallback(() => {
-    return isMobileDevice ? MOBILE_ZOOM_LEVELS : ALLOWED_ZOOM_LEVELS;
-  }, [isMobileDevice]);
+  // Function to correct offset to keep view within valid map bounds
+  const correctOffset = useCallback(
+    (currentOffset) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return currentOffset;
+
+      // Get the corners of the current view
+      const corners = [
+        screenToIso(0, 0, currentOffset, scale, canvas.width, canvas.height),
+        screenToIso(
+          canvas.width,
+          0,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        ),
+        screenToIso(
+          0,
+          canvas.height,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        ),
+        screenToIso(
+          canvas.width,
+          canvas.height,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        ),
+      ];
+
+      // Calculate the center of the view
+      const centerX =
+        (Math.min(...corners.map((c) => c.x)) +
+          Math.max(...corners.map((c) => c.x))) /
+        2;
+      const centerY =
+        (Math.min(...corners.map((c) => c.y)) +
+          Math.max(...corners.map((c) => c.y))) /
+        2;
+
+      // If the center is outside valid bounds, calculate new offset to move view to nearest valid area
+      let newOffset = { ...currentOffset };
+
+      if (centerX < 0) {
+        const { x: screenX } = isoToScreen(
+          0,
+          centerY,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        );
+        newOffset.x += canvas.width / 2 - screenX;
+      } else if (centerX >= MAX_MAP_SIZE.width) {
+        const { x: screenX } = isoToScreen(
+          MAX_MAP_SIZE.width - 1,
+          centerY,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        );
+        newOffset.x += canvas.width / 2 - screenX;
+      }
+
+      if (centerY < 0) {
+        const { y: screenY } = isoToScreen(
+          centerX,
+          0,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        );
+        newOffset.y += canvas.height / 2 - screenY;
+      } else if (centerY >= MAX_MAP_SIZE.height) {
+        const { y: screenY } = isoToScreen(
+          centerX,
+          MAX_MAP_SIZE.height - 1,
+          currentOffset,
+          scale,
+          canvas.width,
+          canvas.height
+        );
+        newOffset.y += canvas.height / 2 - screenY;
+      }
+
+      return newOffset;
+    },
+    [scale]
+  );
 
   const isClickWithinCell = useCallback(
     (x, y, cellX, cellY) => {
@@ -132,6 +224,36 @@ const MapCanvas = () => {
     },
     [isDragging, offset, scale, isClickWithinCell]
   );
+
+  const openModal = useCallback(
+    (cell) => {
+      if (!isDragging && cell && isValidCell(cell.x, cell.y)) {
+        chunkManager.current.handlePointClick(cell.x, cell.y);
+        setSelectedCell(cell);
+        setTimeout(() => {
+          setIsModalOpen(true);
+        }, 100);
+      }
+    },
+    [isDragging, isValidCell]
+  );
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mediaQuery = window.matchMedia("(max-width: 1024px)");
+      const isMobile = mediaQuery.matches;
+      setIsMobileDevice(isMobile);
+      setScale(isMobile ? MOBILE_INITIAL_SCALE : INITIAL_SCALE);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const getCurrentZoomLevels = useCallback(() => {
+    return isMobileDevice ? MOBILE_ZOOM_LEVELS : ALLOWED_ZOOM_LEVELS;
+  }, [isMobileDevice]);
 
   useEffect(() => {
     imageLoader.current.loadImages({
@@ -245,21 +367,18 @@ const MapCanvas = () => {
           const image = imageLoader.current.getPointImage(pointType);
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          renderer.drawCell(screenX, screenY, image, scale, isHovered);
+          const isReachable = isValidCell(x, y);
+          renderer.drawCell(
+            screenX,
+            screenY,
+            image,
+            scale,
+            isHovered,
+            isReachable
+          );
         }
       }
     }
-
-    // Draw red rhombus at 0,0
-    const zeroPoint = isoToScreen(
-      0,
-      0,
-      currentOffset,
-      scale,
-      canvas.width,
-      canvas.height
-    );
-    renderer.drawRedRhombus(zeroPoint.x, zeroPoint.y, scale);
 
     renderer.drawHoverCoordinates(hoveredCell);
     renderer.drawBounds(bounds);
@@ -268,17 +387,7 @@ const MapCanvas = () => {
       visibleChunks.length,
       isLoadingChunk
     );
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
-
-  const openModal = (cell) => {
-    if (!isDragging && cell) {
-      chunkManager.current.handlePointClick(cell.x, cell.y);
-      setSelectedCell(cell);
-      setTimeout(() => {
-        setIsModalOpen(true);
-      }, 100);
-    }
-  };
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, isValidCell]);
 
   const handleMouseDown = useCallback(
     (e) => {
@@ -286,7 +395,7 @@ const MapCanvas = () => {
 
       const rect = canvasRef.current.getBoundingClientRect();
       const cell = getCellFromEvent(e.clientX, e.clientY);
-      if (cell) {
+      if (cell && isValidCell(cell.x, cell.y)) {
         setHoveredCell(cell);
       }
 
@@ -294,7 +403,7 @@ const MapCanvas = () => {
       setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       tempOffsetRef.current = offset;
     },
-    [offset, isMobileDevice, getCellFromEvent]
+    [offset, isMobileDevice, getCellFromEvent, isValidCell]
   );
 
   const handleMouseMove = useCallback(
@@ -323,7 +432,11 @@ const MapCanvas = () => {
         (newCell && (lastCell.x !== newCell.x || lastCell.y !== newCell.y))
       ) {
         lastHoveredCellRef.current = newCell;
-        setHoveredCell(newCell);
+        if (newCell && isValidCell(newCell.x, newCell.y)) {
+          setHoveredCell(newCell);
+        } else {
+          setHoveredCell(null);
+        }
       }
 
       if (isDragging) {
@@ -344,6 +457,7 @@ const MapCanvas = () => {
       scale,
       isMobileDevice,
       getCellFromEvent,
+      isValidCell,
     ]
   );
 
@@ -356,18 +470,29 @@ const MapCanvas = () => {
         const deltaY = Math.abs(e.clientY - mouseDownPos.current.y);
         if (deltaX < dragThreshold.current && deltaY < dragThreshold.current) {
           const cell = getCellFromEvent(e.clientX, e.clientY);
-          openModal(cell);
+          if (cell && isValidCell(cell.x, cell.y)) {
+            openModal(cell);
+          }
         }
       }
 
       if (isDragging) {
-        setOffset(tempOffsetRef.current);
+        const correctedOffset = correctOffset(tempOffsetRef.current);
+        setOffset(correctedOffset);
+        tempOffsetRef.current = correctedOffset;
       }
 
       setIsDragging(false);
       mouseDownPos.current = null;
     },
-    [isDragging, isMobileDevice, getCellFromEvent]
+    [
+      isDragging,
+      isMobileDevice,
+      getCellFromEvent,
+      isValidCell,
+      correctOffset,
+      openModal,
+    ]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -407,9 +532,9 @@ const MapCanvas = () => {
       );
 
       setScale(newScale);
-      setOffset(newOffset);
+      setOffset(correctOffset(newOffset));
     },
-    [scale, offset, isMobileDevice, getCurrentZoomLevels]
+    [scale, offset, isMobileDevice, getCurrentZoomLevels, correctOffset]
   );
 
   const handleTouchStart = useCallback(
@@ -430,14 +555,13 @@ const MapCanvas = () => {
         );
         lastTouchDistance.current = distance;
 
-        // Calculate and store the center point of the pinch
         const centerX = (touch1.clientX + touch2.clientX) / 2;
         const centerY = (touch1.clientY + touch2.clientY) / 2;
         lastTouchCenter.current = { x: centerX, y: centerY };
       } else {
         isMultiTouch.current = false;
         const cell = getCellFromEvent(touch.clientX, touch.clientY);
-        if (cell) {
+        if (cell && isValidCell(cell.x, cell.y)) {
           setHoveredCell(cell);
         }
 
@@ -448,7 +572,7 @@ const MapCanvas = () => {
         tempOffsetRef.current = offset;
       }
     },
-    [offset, isDragging, isMobileDevice, getCellFromEvent]
+    [offset, isDragging, isMobileDevice, getCellFromEvent, isValidCell]
   );
 
   const handleTouchMove = useCallback(
@@ -466,24 +590,20 @@ const MapCanvas = () => {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
 
-        // Calculate new pinch center
         const centerX = (touch1.clientX + touch2.clientX) / 2;
         const centerY = (touch1.clientY + touch2.clientY) / 2;
         const rect = canvasRef.current.getBoundingClientRect();
         const pinchCenterX = (centerX - rect.left) * window.devicePixelRatio;
         const pinchCenterY = (centerY - rect.top) * window.devicePixelRatio;
 
-        // Calculate new distance between touch points
         const newDistance = Math.hypot(
           touch2.clientX - touch1.clientX,
           touch2.clientY - touch1.clientY
         );
 
         if (lastTouchDistance.current && lastTouchCenter.current) {
-          // Calculate zoom scale change based on the pinch gesture
           const distanceChange = newDistance / lastTouchDistance.current;
 
-          // Determine if zooming in or out
           const zoomingIn = distanceChange > 1;
           const newScale = getNextZoomLevel(
             scale,
@@ -503,7 +623,8 @@ const MapCanvas = () => {
             );
 
             setScale(newScale);
-            setOffset(newOffset);
+            const correctedOffset = correctOffset(newOffset);
+            setOffset(correctedOffset);
           }
         }
 
@@ -544,6 +665,7 @@ const MapCanvas = () => {
       scale,
       offset,
       getCurrentZoomLevels,
+      correctOffset,
     ]
   );
 
@@ -551,22 +673,24 @@ const MapCanvas = () => {
     (e) => {
       if (!isMobileDevice) return;
 
-      // Only handle cell clicks if it wasn't a multi-touch gesture
       if (!isMultiTouch.current && !isDragging && touchStartPos.current) {
         const touchEndTime = Date.now();
         const touchDuration = touchEndTime - touchStartTime.current;
 
         if (touchDuration < 200) {
           const cell = hoveredCell;
-          openModal(cell);
+          if (cell && isValidCell(cell.x, cell.y)) {
+            openModal(cell);
+          }
         }
       }
 
       if (isDragging) {
-        setOffset(tempOffsetRef.current);
+        const correctedOffset = correctOffset(tempOffsetRef.current);
+        setOffset(correctedOffset);
+        tempOffsetRef.current = correctedOffset;
       }
 
-      // Reset all touch-related state
       setIsDragging(false);
       touchStartPos.current = null;
       touchStartTime.current = null;
@@ -574,25 +698,28 @@ const MapCanvas = () => {
       lastTouchCenter.current = null;
       isMultiTouch.current = false;
     },
-    [isDragging, isMobileDevice, hoveredCell]
+    [
+      isDragging,
+      isMobileDevice,
+      hoveredCell,
+      isValidCell,
+      correctOffset,
+      openModal,
+    ]
   );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const pixelRatio = window.devicePixelRatio || 1;
 
-    // Set the canvas size in actual pixels
     canvas.width = window.innerWidth * pixelRatio;
     canvas.height = window.innerHeight * pixelRatio;
-
-    // Set the canvas display size
     canvas.style.width = `${window.innerWidth}px`;
     canvas.style.height = `${window.innerHeight}px`;
 
     drawGrid();
 
     const handleResize = () => {
-      // Update canvas size with pixel ratio on resize
       canvas.width = window.innerWidth * pixelRatio;
       canvas.height = window.innerHeight * pixelRatio;
       canvas.style.width = `${window.innerWidth}px`;
