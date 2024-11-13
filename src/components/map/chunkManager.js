@@ -45,7 +45,7 @@ export class ChunkManager {
 
       const body = {
         init_data:
-          "query_id=AAEjkvwGAAAAACOS_AYyDS2l&user=%7B%22id%22%3A117215779%2C%22first_name%22%3A%22Ali%22%2C%22last_name%22%3A%22Manouchehri%22%2C%22username%22%3A%22manouchehri1990%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%7D&auth_date=1729849891&hash=b2690a8b4b2233b20656f544d9384ed2c4daf9e2f68666d74425b09df23abde2",
+          "user=%7B%22id%22%3A38071982%2C%22first_name%22%3A%22Amir%22%2C%22last_name%22%3A%22Sepehri%22%2C%22username%22%3A%22Amir_MLTV%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2Fyri5s8WHK6TgqPrSuQhvksEGEWW0IXzUpYeE3DWsneU.svg%22%7D&chat_instance=-4294228547133164376&chat_type=private&start_param=ref1104870100&auth_date=1731522327&hash=7b1f9d6d5b5acd242511021703a36e97572ace4a8d9b69f7d19383d9c19702e8",
         map_info: {
           planet_id: 1,
           x_loc_min: startX,
@@ -57,7 +57,7 @@ export class ChunkManager {
 
       const response = await axios({
         method: "post",
-        url: "https://m0vj9xw1-8000.euw.devtunnels.ms/api/map_range/",
+        url: "https://api.ticktom.com/api/map_range/",
         data: body,
         headers: {
           "Content-Type": "application/json",
@@ -143,45 +143,66 @@ export class ChunkManager {
   }
 
   getVisibleChunks(screenToIso, currentOffset, scale, canvas) {
-    const visibleChunks = new Set();
-
-    // Calculate the number of cells that fit in the viewport at current zoom level
-    const tileWidth = 30 * scale;
-    const tileHeight = 15 * scale;
-
-    // Calculate how many cells fit in the viewport
-    const viewportCellsX = Math.ceil(canvas.width / tileWidth) * 2;
-    const viewportCellsY = Math.ceil(canvas.height / tileHeight) * 2;
-
-    // Get the center point of the viewport in grid coordinates
-    const centerPoint = screenToIso(
-      canvas.width / 2,
-      canvas.height / 2,
+    // Get the corners of the viewport in grid coordinates
+    const topLeft = screenToIso(
+      0,
+      0,
+      currentOffset,
+      scale,
+      canvas.width,
+      canvas.height
+    );
+    const topRight = screenToIso(
+      canvas.width,
+      0,
+      currentOffset,
+      scale,
+      canvas.width,
+      canvas.height
+    );
+    const bottomLeft = screenToIso(
+      0,
+      canvas.height,
+      currentOffset,
+      scale,
+      canvas.width,
+      canvas.height
+    );
+    const bottomRight = screenToIso(
+      canvas.width,
+      canvas.height,
       currentOffset,
       scale,
       canvas.width,
       canvas.height
     );
 
-    // Calculate the range of cells to check based on viewport size and zoom
-    const halfViewportX = Math.ceil(viewportCellsX / 2);
-    const halfViewportY = Math.ceil(viewportCellsY / 2);
+    // Calculate the width and height of the viewport in grid coordinates
+    const viewportWidth = Math.abs(topRight.x - topLeft.x);
+    const viewportHeight = Math.abs(bottomLeft.y - topLeft.y);
 
-    // Calculate the visible range in grid coordinates
-    const minX = centerPoint.x - halfViewportX;
-    const maxX = centerPoint.x + halfViewportX;
-    const minY = centerPoint.y - halfViewportY;
-    const maxY = centerPoint.y + halfViewportY;
+    // Calculate the number of chunks needed to cover the viewport
+    const chunksX = Math.ceil(viewportWidth / CHUNK_SIZE) + 2; // Add 2 for padding
+    const chunksY = Math.ceil(viewportHeight / CHUNK_SIZE) + 2; // Add 2 for padding
 
-    // Convert grid coordinates to chunk coordinates
-    const minChunkX = Math.floor(minX / CHUNK_SIZE);
-    const maxChunkX = Math.ceil(maxX / CHUNK_SIZE);
-    const minChunkY = Math.floor(minY / CHUNK_SIZE);
-    const maxChunkY = Math.ceil(maxY / CHUNK_SIZE);
+    // Calculate the center chunk
+    const centerChunkX = Math.floor((topLeft.x + topRight.x) / 2 / CHUNK_SIZE);
+    const centerChunkY = Math.floor(
+      (topLeft.y + bottomLeft.y) / 2 / CHUNK_SIZE
+    );
 
     // Add visible chunks
-    for (let x = minChunkX; x <= maxChunkX; x++) {
-      for (let y = minChunkY; y <= maxChunkY; y++) {
+    const visibleChunks = new Set();
+    for (
+      let x = centerChunkX - Math.floor(chunksX / 2);
+      x <= centerChunkX + Math.floor(chunksX / 2);
+      x++
+    ) {
+      for (
+        let y = centerChunkY - Math.floor(chunksY / 2);
+        y <= centerChunkY + Math.floor(chunksY / 2);
+        y++
+      ) {
         visibleChunks.add(this.getChunkKey(x, y));
       }
     }

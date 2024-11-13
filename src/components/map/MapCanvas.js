@@ -26,8 +26,6 @@ import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
 
 const MapCanvas = () => {
-  // ... (previous code remains the same until handleTouchMove)
-
   const {
     setClickedUserData,
     setClickedLockData,
@@ -245,7 +243,9 @@ const MapCanvas = () => {
         ) {
           const pointType = pointMap.get(`${x},${y}`);
           const image = imageLoader.current.getPointImage(pointType);
-          renderer.drawCell(screenX, screenY, image, scale);
+          const isHovered =
+            hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
+          renderer.drawCell(screenX, screenY, image, scale, isHovered);
         }
       }
     }
@@ -450,6 +450,7 @@ const MapCanvas = () => {
     },
     [offset, isDragging, isMobileDevice, getCellFromEvent]
   );
+
   const handleTouchMove = useCallback(
     (e) => {
       if (!isMobileDevice) return;
@@ -545,8 +546,6 @@ const MapCanvas = () => {
       getCurrentZoomLevels,
     ]
   );
-
-  // ... (rest of the component remains the same)
 
   const handleTouchEnd = useCallback(
     (e) => {
