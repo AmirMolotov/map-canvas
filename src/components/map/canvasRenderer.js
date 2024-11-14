@@ -46,7 +46,7 @@ export class CanvasRenderer {
 
     // Draw hover effect if cell is hovered
     if (isHovered) {
-      this.ctx.fillStyle = "rgba(0, 100, 255, 0.3)";
+      this.ctx.fillStyle = "rgba(254, 92, 92, 0.3)";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
       this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
@@ -58,7 +58,7 @@ export class CanvasRenderer {
 
     // Draw dark overlay for unreachable areas
     if (!isReachable) {
-      this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
       this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
@@ -66,6 +66,35 @@ export class CanvasRenderer {
       this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
       this.ctx.closePath();
       this.ctx.fill();
+
+      // Draw connecting lines between rhombuses
+      this.ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+      this.ctx.lineWidth = 300;
+
+      // Draw diagonal lines to connect with neighboring rhombuses
+      // Top-right line
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, -tileHeight * 0.3);
+      this.ctx.lineTo(tileWidth * 0.3, 0);
+      this.ctx.stroke();
+
+      // Bottom-right line
+      this.ctx.beginPath();
+      this.ctx.moveTo(tileWidth * 0.3, 0);
+      this.ctx.lineTo(0, tileHeight * 0.3);
+      this.ctx.stroke();
+
+      // Bottom-left line
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, tileHeight * 0.3);
+      this.ctx.lineTo(-tileWidth * 0.3, 0);
+      this.ctx.stroke();
+
+      // Top-left line
+      this.ctx.beginPath();
+      this.ctx.moveTo(-tileWidth * 0.3, 0);
+      this.ctx.lineTo(0, -tileHeight * 0.3);
+      this.ctx.stroke();
     }
 
     this.ctx.restore();
@@ -127,42 +156,6 @@ export class CanvasRenderer {
       10,
       60
     );
-    this.ctx.restore();
-  }
-
-  drawZoomButton(x, y, width, height, symbol, enabled) {
-    this.ctx.save();
-
-    // Button background
-    this.ctx.fillStyle = enabled
-      ? "rgba(20, 20, 20, 0.8)"
-      : "rgba(40, 40, 40, 0.5)";
-    this.ctx.fillRect(x, y, width, height);
-
-    // Button border
-    this.ctx.strokeStyle = enabled
-      ? "rgba(0, 200, 255, 0.7)"
-      : "rgba(60, 60, 60, 0.5)";
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(x, y, width, height);
-
-    // Glow effect for enabled buttons
-    if (enabled) {
-      this.ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
-      this.ctx.shadowBlur = 5;
-      this.ctx.strokeRect(x, y, width, height);
-      this.ctx.shadowBlur = 0;
-    }
-
-    // Button symbol
-    this.ctx.fillStyle = enabled
-      ? "rgba(0, 200, 255, 0.9)"
-      : "rgba(100, 100, 100, 0.5)";
-    this.ctx.font = "20px Arial";
-    this.ctx.textAlign = "center";
-    this.ctx.textBaseline = "middle";
-    this.ctx.fillText(symbol, x + width / 2, y + height / 2);
-
     this.ctx.restore();
   }
 }
