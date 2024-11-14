@@ -28,25 +28,24 @@ export class CanvasRenderer {
     );
   }
 
-  drawCell(x, y, image, scale, isHovered = false, isReachable = true) {
+  drawCell(
+    x,
+    y,
+    image,
+    scale,
+    isHovered = false,
+    isReachable = true,
+    isBorderCell = false
+  ) {
     const tileWidth = 402 * scale;
     const tileHeight = 285 * scale;
 
     this.ctx.save();
     this.ctx.translate(x, y);
 
-    // Draw the base image first
-    this.ctx.drawImage(
-      image,
-      -tileWidth / 2,
-      -tileHeight / 2,
-      tileWidth,
-      tileHeight
-    );
-
-    // Draw hover effect if cell is hovered
-    if (isHovered) {
-      this.ctx.fillStyle = "rgba(254, 92, 92, 0.3)";
+    if (!isReachable && !isBorderCell) {
+      // Draw solid black for disabled cells (except border cells)
+      this.ctx.fillStyle = "#000000";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
       this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
@@ -54,50 +53,27 @@ export class CanvasRenderer {
       this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
       this.ctx.closePath();
       this.ctx.fill();
-    }
+    } else {
+      // Draw the base image for reachable cells and border cells
+      this.ctx.drawImage(
+        image,
+        -tileWidth / 2,
+        -tileHeight / 2,
+        tileWidth,
+        tileHeight
+      );
 
-    // Draw dark overlay for unreachable areas
-    if (!isReachable) {
-      this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
-      this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
-      this.ctx.lineTo(0, tileHeight * 0.3); // Bottom point
-      this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
-      this.ctx.closePath();
-      this.ctx.fill();
-
-      // Draw connecting red lines to neighbor edge centers
-      this.ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-      this.ctx.lineWidth = 2;
-
-      // Calculate midpoints between center and corners
-      const edgeX = tileWidth * 0.15; // Half of 0.3
-      const edgeY = tileHeight * 0.15; // Half of 0.3
-
-      // Top-right connection
-      this.ctx.beginPath();
-      this.ctx.moveTo(edgeX, -edgeY);
-      this.ctx.lineTo(tileWidth * 0.35, -tileHeight * 0.35);
-      this.ctx.stroke();
-
-      // Top-left connection
-      this.ctx.beginPath();
-      this.ctx.moveTo(-edgeX, -edgeY);
-      this.ctx.lineTo(-tileWidth * 0.35, -tileHeight * 0.35);
-      this.ctx.stroke();
-
-      // Bottom-left connection
-      this.ctx.beginPath();
-      this.ctx.moveTo(-edgeX, edgeY);
-      this.ctx.lineTo(-tileWidth * 0.35, tileHeight * 0.35);
-      this.ctx.stroke();
-
-      // Bottom-right connection
-      this.ctx.beginPath();
-      this.ctx.moveTo(edgeX, edgeY);
-      this.ctx.lineTo(tileWidth * 0.35, tileHeight * 0.35);
-      this.ctx.stroke();
+      // Draw hover effect if cell is hovered
+      if (isHovered) {
+        this.ctx.fillStyle = "rgba(254, 92, 92, 0.3)";
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
+        this.ctx.lineTo(tileWidth * 0.3, 0); // Right point
+        this.ctx.lineTo(0, tileHeight * 0.3); // Bottom point
+        this.ctx.lineTo(-tileWidth * 0.3, 0); // Left point
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
     }
 
     this.ctx.restore();

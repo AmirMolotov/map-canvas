@@ -3,6 +3,7 @@ import emptyBlockImage from "../../assets/empty.png";
 import tonBlockImage from "../../assets/mine.png";
 import lockBlockImage from "../../assets/lock-block.png";
 import userBlockImage from "../../assets/user-block.png";
+import treeBlockImage from "../../assets/tree.png";
 import MapModal from "./MapModal";
 import { useCellData } from "../../context/CellContext";
 
@@ -78,6 +79,11 @@ const MapCanvas = () => {
     );
   }, []);
 
+  // Function to check if a cell is a border cell (x=-1 or y=-1)
+  const isBorderCell = useCallback((x, y) => {
+    return (x === -1 || y === -1) && !(x < -1 || y < -1);
+  }, []);
+
   // Function to correct offset to prevent panning to negative areas
   const correctOffset = useCallback(
     (currentOffset) => {
@@ -126,9 +132,9 @@ const MapCanvas = () => {
       let newOffset = { ...currentOffset };
 
       // Prevent panning to negative coordinates
-      if (centerX < 0) {
+      if (centerX < -1) {
         const { x: screenX } = isoToScreen(
-          0,
+          -1,
           centerY,
           currentOffset,
           scale,
@@ -151,10 +157,10 @@ const MapCanvas = () => {
       }
 
       // Prevent panning to negative coordinates
-      if (centerY < 0) {
+      if (centerY < -1) {
         const { y: screenY } = isoToScreen(
           centerX,
-          0,
+          -1,
           currentOffset,
           scale,
           canvas.width,
@@ -266,6 +272,7 @@ const MapCanvas = () => {
       ton: tonBlockImage,
       lock: lockBlockImage,
       user: userBlockImage,
+      tree: treeBlockImage,
     });
   }, []);
 
@@ -304,7 +311,7 @@ const MapCanvas = () => {
       canvas
     );
 
-    // Filter out chunks with negative coordinates
+    // Filter out chunks with negative coordinates beyond -1
     const validChunks = visibleChunks.filter((chunkKey) => {
       const [chunkX, chunkY] = chunkKey.split(",").map(Number);
       return chunkX >= 0 && chunkY >= 0;
@@ -349,7 +356,7 @@ const MapCanvas = () => {
       ),
     ];
 
-    // Calculate bounds
+    // Calculate bounds including negative coordinates for border
     const bounds = {
       minX: Math.floor(Math.min(...corners.map((c) => c.x))),
       maxX: Math.min(
@@ -385,17 +392,33 @@ const MapCanvas = () => {
           screenY < canvas.height + tileHeight
         ) {
           const pointType = pointMap.get(`${x},${y}`);
-          const image = imageLoader.current.getPointImage(pointType);
+          let image;
+          let isReachable = true;
+          const isBorder = isBorderCell(x, y);
+
+          if (isBorder) {
+            // Show tree image for border cells
+            image = imageLoader.current.getPointImage("tree");
+            isReachable = false;
+          } else if (x < -1 || y < -1) {
+            // Use empty image for other negative coordinates (will be rendered as solid black)
+            image = imageLoader.current.getPointImage("empty");
+            isReachable = false;
+          } else {
+            image = imageLoader.current.getPointImage(pointType);
+          }
+
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          const isReachable = x >= 0 && y >= 0; // Cells with negative coordinates are not reachable
+
           renderer.drawCell(
             screenX,
             screenY,
             image,
             scale,
             isHovered,
-            isReachable
+            isReachable,
+            isBorder
           );
         }
       }
@@ -408,7 +431,7 @@ const MapCanvas = () => {
       validChunks.length,
       isLoadingChunk
     );
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, isBorderCell]);
 
   const handleMouseDown = useCallback(
     (e) => {

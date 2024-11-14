@@ -5,6 +5,7 @@ export class ImageLoader {
       ton: null,
       lock: null,
       user: null,
+      tree: null,
     };
     this.loadedCount = 0;
   }
@@ -18,18 +19,20 @@ export class ImageLoader {
       });
     };
 
-    const [emptyImg, tonImg, lockImg, userImg] = await Promise.all([
+    const [emptyImg, tonImg, lockImg, userImg, treeImg] = await Promise.all([
       loadImage(imagePaths.empty),
       loadImage(imagePaths.ton),
       loadImage(imagePaths.lock),
       loadImage(imagePaths.user),
+      loadImage(imagePaths.tree),
     ]);
 
     this.images.empty = emptyImg;
     this.images.ton = tonImg;
     this.images.lock = lockImg;
     this.images.user = userImg;
-    this.loadedCount = 4;
+    this.images.tree = treeImg;
+    this.loadedCount = 5;
   }
 
   getPointImage(type) {
@@ -40,12 +43,14 @@ export class ImageLoader {
         return this.images.ton;
       case "lock":
         return this.images.lock;
+      case "tree":
+        return this.images.tree;
       default:
         return this.images.empty;
     }
   }
 
   isLoaded() {
-    return this.loadedCount === 4;
+    return this.loadedCount === 5;
   }
 }
