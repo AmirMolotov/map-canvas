@@ -71,28 +71,32 @@ export class CanvasRenderer {
       this.ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
       this.ctx.lineWidth = 2;
 
-      // Top-right edge to bottom-left edge of top-right neighbor
+      // Calculate midpoints between center and corners
+      const edgeX = tileWidth * 0.15; // Half of 0.3
+      const edgeY = tileHeight * 0.15; // Half of 0.3
+
+      // Top-right connection
       this.ctx.beginPath();
-      this.ctx.moveTo(tileWidth * 0.15, -tileHeight * 0.15); // Top-right edge center
-      this.ctx.lineTo(tileWidth * 0.45, -tileHeight * 0.45); // Bottom-left edge of top-right neighbor
+      this.ctx.moveTo(edgeX, -edgeY);
+      this.ctx.lineTo(tileWidth * 0.35, -tileHeight * 0.35);
       this.ctx.stroke();
 
-      // Top-left edge to bottom-right edge of top-left neighbor
+      // Top-left connection
       this.ctx.beginPath();
-      this.ctx.moveTo(-tileWidth * 0.15, -tileHeight * 0.15); // Top-left edge center
-      this.ctx.lineTo(-tileWidth * 0.45, -tileHeight * 0.45); // Bottom-right edge of top-left neighbor
+      this.ctx.moveTo(-edgeX, -edgeY);
+      this.ctx.lineTo(-tileWidth * 0.35, -tileHeight * 0.35);
       this.ctx.stroke();
 
-      // Bottom-left edge to top-right edge of bottom-left neighbor
+      // Bottom-left connection
       this.ctx.beginPath();
-      this.ctx.moveTo(-tileWidth * 0.15, tileHeight * 0.15); // Bottom-left edge center
-      this.ctx.lineTo(-tileWidth * 0.45, tileHeight * 0.45); // Top-right edge of bottom-left neighbor
+      this.ctx.moveTo(-edgeX, edgeY);
+      this.ctx.lineTo(-tileWidth * 0.35, tileHeight * 0.35);
       this.ctx.stroke();
 
-      // Bottom-right edge to top-left edge of bottom-right neighbor
+      // Bottom-right connection
       this.ctx.beginPath();
-      this.ctx.moveTo(tileWidth * 0.15, tileHeight * 0.15); // Bottom-right edge center
-      this.ctx.lineTo(tileWidth * 0.45, tileHeight * 0.45); // Top-left edge of bottom-right neighbor
+      this.ctx.moveTo(edgeX, edgeY);
+      this.ctx.lineTo(tileWidth * 0.35, tileHeight * 0.35);
       this.ctx.stroke();
     }
 
