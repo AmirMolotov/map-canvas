@@ -395,7 +395,9 @@ const MapCanvas = () => {
             image,
             scale,
             isHovered,
-            isReachable
+            isReachable,
+            x, // Pass the cell's x coordinate
+            y // Pass the cell's y coordinate
           );
         }
       }

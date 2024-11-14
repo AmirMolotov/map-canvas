@@ -28,7 +28,16 @@ export class CanvasRenderer {
     );
   }
 
-  drawCell(x, y, image, scale, isHovered = false, isReachable = true) {
+  drawCell(
+    x,
+    y,
+    image,
+    scale,
+    isHovered = false,
+    isReachable = true,
+    cellX,
+    cellY
+  ) {
     const tileWidth = 402 * scale;
     const tileHeight = 285 * scale;
 
@@ -43,6 +52,35 @@ export class CanvasRenderer {
       tileWidth,
       tileHeight
     );
+
+    // Draw borders only for positive cells (x≥0, y≥0)
+    if (
+      cellX !== undefined &&
+      cellY !== undefined &&
+      cellX >= 0 &&
+      cellY >= 0
+    ) {
+      this.ctx.strokeStyle = "blue";
+      this.ctx.lineWidth = 6;
+
+      const extension = 0.5; // Full cell boundary size
+
+      if (cellX === 0) {
+        // Draw left border for cells at x=0 (following the isometric grid)
+        this.ctx.beginPath();
+        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
+        this.ctx.lineTo(0, -tileHeight * extension); // Top point
+        this.ctx.stroke();
+      }
+
+      if (cellY === 0) {
+        // Draw right border for cells at y=0 (following the isometric grid)
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -tileHeight * extension); // Top point
+        this.ctx.lineTo(tileWidth * extension, 0); // Right point
+        this.ctx.stroke();
+      }
+    }
 
     // Draw hover effect if cell is hovered
     if (isHovered) {
