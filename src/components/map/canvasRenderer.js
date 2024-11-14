@@ -67,33 +67,32 @@ export class CanvasRenderer {
       this.ctx.closePath();
       this.ctx.fill();
 
-      // Draw connecting lines between rhombuses
+      // Draw connecting red lines to neighbor edge centers
       this.ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-      this.ctx.lineWidth = 300;
+      this.ctx.lineWidth = 2;
 
-      // Draw diagonal lines to connect with neighboring rhombuses
-      // Top-right line
+      // Top-right edge to bottom-left edge of top-right neighbor
       this.ctx.beginPath();
-      this.ctx.moveTo(0, -tileHeight * 0.3);
-      this.ctx.lineTo(tileWidth * 0.3, 0);
+      this.ctx.moveTo(tileWidth * 0.15, -tileHeight * 0.15); // Top-right edge center
+      this.ctx.lineTo(tileWidth * 0.45, -tileHeight * 0.45); // Bottom-left edge of top-right neighbor
       this.ctx.stroke();
 
-      // Bottom-right line
+      // Top-left edge to bottom-right edge of top-left neighbor
       this.ctx.beginPath();
-      this.ctx.moveTo(tileWidth * 0.3, 0);
-      this.ctx.lineTo(0, tileHeight * 0.3);
+      this.ctx.moveTo(-tileWidth * 0.15, -tileHeight * 0.15); // Top-left edge center
+      this.ctx.lineTo(-tileWidth * 0.45, -tileHeight * 0.45); // Bottom-right edge of top-left neighbor
       this.ctx.stroke();
 
-      // Bottom-left line
+      // Bottom-left edge to top-right edge of bottom-left neighbor
       this.ctx.beginPath();
-      this.ctx.moveTo(0, tileHeight * 0.3);
-      this.ctx.lineTo(-tileWidth * 0.3, 0);
+      this.ctx.moveTo(-tileWidth * 0.15, tileHeight * 0.15); // Bottom-left edge center
+      this.ctx.lineTo(-tileWidth * 0.45, tileHeight * 0.45); // Top-right edge of bottom-left neighbor
       this.ctx.stroke();
 
-      // Top-left line
+      // Bottom-right edge to top-left edge of bottom-right neighbor
       this.ctx.beginPath();
-      this.ctx.moveTo(-tileWidth * 0.3, 0);
-      this.ctx.lineTo(0, -tileHeight * 0.3);
+      this.ctx.moveTo(tileWidth * 0.15, tileHeight * 0.15); // Bottom-right edge center
+      this.ctx.lineTo(tileWidth * 0.45, tileHeight * 0.45); // Top-left edge of bottom-right neighbor
       this.ctx.stroke();
     }
 
