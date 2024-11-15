@@ -25,9 +25,6 @@ import {
 import { ChunkManager } from "./chunkManager";
 import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
-import { MAX_MAP_SIZE } from "./constants";
-
-// Define the maximum map dimensions
 
 const MapCanvas = () => {
   const {
@@ -57,7 +54,7 @@ const MapCanvas = () => {
   const touchStartPos = useRef(null);
   const touchStartTime = useRef(null);
   const isMultiTouch = useRef(false);
-  const [mapBounds, setMapBounds] = useState(null);
+  const [mapBounds, setMapBounds] = useState({ x_limit: 100, y_limit: 100 });
 
   const chunkManager = useRef(
     new ChunkManager(
@@ -71,11 +68,12 @@ const MapCanvas = () => {
   const canvasRenderer = useRef(null);
 
   // Function to check if a cell is within the valid map bounds and enabled
-  const isValidCell = useCallback((x, y) => {
-    return (
-      x >= 1 && y >= 1 && x < MAX_MAP_SIZE.width && y < MAX_MAP_SIZE.height
-    );
-  }, []);
+  const isValidCell = useCallback(
+    (x, y) => {
+      return x >= 1 && y >= 1 && x < mapBounds.x_limit && y < mapBounds.y_limit;
+    },
+    [mapBounds]
+  );
 
   // Function to correct offset to prevent panning to negative areas
   const correctOffset = useCallback(
@@ -137,9 +135,9 @@ const MapCanvas = () => {
         newOffset.x += canvas.width / 2 - screenX;
       }
       // Handle X coordinates beyond max width
-      else if (centerX >= MAX_MAP_SIZE.width) {
+      else if (centerX >= mapBounds.x_limit) {
         const { x: screenX } = isoToScreen(
-          MAX_MAP_SIZE.width - 1,
+          mapBounds.x_limit - 1,
           centerY,
           currentOffset,
           scale,
@@ -162,10 +160,10 @@ const MapCanvas = () => {
         newOffset.y += canvas.height / 2 - screenY;
       }
       // Handle Y coordinates beyond max height
-      else if (centerY >= MAX_MAP_SIZE.height) {
+      else if (centerY >= mapBounds.y_limit) {
         const { y: screenY } = isoToScreen(
           centerX,
-          MAX_MAP_SIZE.height - 1,
+          mapBounds.y_limit - 1,
           currentOffset,
           scale,
           canvas.width,
@@ -176,7 +174,7 @@ const MapCanvas = () => {
 
       return newOffset;
     },
-    [scale]
+    [scale, mapBounds]
   );
 
   const isClickWithinCell = useCallback(
@@ -303,7 +301,6 @@ const MapCanvas = () => {
             "Content-Type": "application/json",
           },
         });
-        console.log(response.data);
 
         setMapBounds({
           x_limit: response.data[5].game_planets[0].x_limit,
@@ -317,7 +314,6 @@ const MapCanvas = () => {
     fetchMapBounds();
   }, []);
 
-  console.log("Map bounds:", mapBounds);
   const drawGrid = useCallback(() => {
     if (!canvasRef.current || !imageLoader.current.isLoaded()) return;
 
@@ -383,12 +379,12 @@ const MapCanvas = () => {
     const bounds = {
       minX: Math.floor(Math.min(...corners.map((c) => c.x))),
       maxX: Math.min(
-        MAX_MAP_SIZE.width - 1,
+        mapBounds.x_limit - 1,
         Math.ceil(Math.max(...corners.map((c) => c.x)))
       ),
       minY: Math.floor(Math.min(...corners.map((c) => c.y))),
       maxY: Math.min(
-        MAX_MAP_SIZE.height - 1,
+        mapBounds.y_limit - 1,
         Math.ceil(Math.max(...corners.map((c) => c.y)))
       ),
     };
@@ -440,7 +436,7 @@ const MapCanvas = () => {
       validChunks.length,
       isLoadingChunk
     );
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk]);
+  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapBounds]);
 
   const handleMouseDown = useCallback(
     (e) => {

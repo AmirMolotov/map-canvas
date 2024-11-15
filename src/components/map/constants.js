@@ -13,8 +13,3 @@ export const MOBILE_PAN_SPEED_MULTIPLIER = 2.5; // Makes panning faster on mobil
 
 // Initial state
 export const INITIAL_OFFSET = { x: 0, y: 0 };
-
-export const MAX_MAP_SIZE = {
-  width: 100,
-  height: 100,
-};
