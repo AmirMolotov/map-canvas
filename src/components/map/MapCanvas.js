@@ -423,7 +423,8 @@ const MapCanvas = () => {
             isHovered,
             isReachable,
             x,
-            y
+            y,
+            mapBounds
           );
         }
       }

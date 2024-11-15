@@ -36,13 +36,16 @@ export class CanvasRenderer {
     isHovered = false,
     isReachable = true,
     cellX,
-    cellY
+    cellY,
+    mapBounds
   ) {
     const tileWidth = 402 * scale;
     const tileHeight = 285 * scale;
 
     this.ctx.save();
     this.ctx.translate(x, y);
+
+    if (!mapBounds) return;
 
     // Draw the base image first
     this.ctx.drawImage(
@@ -64,6 +67,20 @@ export class CanvasRenderer {
       this.ctx.lineWidth = 6;
 
       const extension = 0.5; // Full cell boundary size
+
+      if (cellX === mapBounds.x_limit - 1) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, tileHeight * extension); // Bottom point
+        this.ctx.lineTo(tileWidth * extension, 0); // Right point
+        this.ctx.stroke();
+      }
+
+      if (cellY === mapBounds.y_limit - 1) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
+        this.ctx.lineTo(0, tileHeight * extension); // Bottom point
+        this.ctx.stroke();
+      }
 
       if (cellX === 1) {
         // Draw left border for cells at x=1 (following the isometric grid)
