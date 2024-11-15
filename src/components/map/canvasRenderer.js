@@ -56,49 +56,6 @@ export class CanvasRenderer {
       tileHeight
     );
 
-    // Draw borders only for cells at x=1 or y=1 (the starting edges)
-    if (
-      cellX !== undefined &&
-      cellY !== undefined &&
-      cellX >= 1 &&
-      cellY >= 1
-    ) {
-      this.ctx.strokeStyle = "blue";
-      this.ctx.lineWidth = 6;
-
-      const extension = 0.5; // Full cell boundary size
-
-      if (cellX === mapBounds.x_limit - 1) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, tileHeight * extension); // Bottom point
-        this.ctx.lineTo(tileWidth * extension, 0); // Right point
-        this.ctx.stroke();
-      }
-
-      if (cellY === mapBounds.y_limit - 1) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
-        this.ctx.lineTo(0, tileHeight * extension); // Bottom point
-        this.ctx.stroke();
-      }
-
-      if (cellX === 1) {
-        // Draw left border for cells at x=1 (following the isometric grid)
-        this.ctx.beginPath();
-        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
-        this.ctx.lineTo(0, -tileHeight * extension); // Top point
-        this.ctx.stroke();
-      }
-
-      if (cellY === 1) {
-        // Draw right border for cells at y=1 (following the isometric grid)
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, -tileHeight * extension); // Top point
-        this.ctx.lineTo(tileWidth * extension, 0); // Right point
-        this.ctx.stroke();
-      }
-    }
-
     // Draw hover effect if cell is hovered and reachable
     if (isHovered && isReachable) {
       this.ctx.fillStyle = "rgba(254, 92, 92, 0.3)";
@@ -153,6 +110,49 @@ export class CanvasRenderer {
       this.ctx.moveTo(edgeX, edgeY);
       this.ctx.lineTo(tileWidth * 0.35, tileHeight * 0.35);
       this.ctx.stroke();
+    }
+
+    // Draw borders only for cells at x=1 or y=1 (the starting edges)
+    if (
+      cellX !== undefined &&
+      cellY !== undefined &&
+      cellX >= 1 &&
+      cellY >= 1
+    ) {
+      this.ctx.strokeStyle = "blue";
+      this.ctx.lineWidth = 6;
+
+      const extension = 0.5; // Full cell boundary size
+
+      if (cellX === mapBounds.x_limit - 1 && cellY < mapBounds.y_limit) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, tileHeight * extension); // Bottom point
+        this.ctx.lineTo(tileWidth * extension, 0); // Right point
+        this.ctx.stroke();
+      }
+
+      if (cellY === mapBounds.y_limit - 1 && cellX < mapBounds.x_limit) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
+        this.ctx.lineTo(0, tileHeight * extension); // Bottom point
+        this.ctx.stroke();
+      }
+
+      if (cellX === 1) {
+        // Draw left border for cells at x=1 (following the isometric grid)
+        this.ctx.beginPath();
+        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
+        this.ctx.lineTo(0, -tileHeight * extension); // Top point
+        this.ctx.stroke();
+      }
+
+      if (cellY === 1) {
+        // Draw right border for cells at y=1 (following the isometric grid)
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -tileHeight * extension); // Top point
+        this.ctx.lineTo(tileWidth * extension, 0); // Right point
+        this.ctx.stroke();
+      }
     }
 
     this.ctx.restore();

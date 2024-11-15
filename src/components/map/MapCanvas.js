@@ -54,7 +54,7 @@ const MapCanvas = () => {
   const touchStartPos = useRef(null);
   const touchStartTime = useRef(null);
   const isMultiTouch = useRef(false);
-  const [mapBounds, setMapBounds] = useState({ x_limit: 100, y_limit: 100 });
+  const [mapBounds, setMapBounds] = useState({ x_limit: 150, y_limit: 150 });
 
   const chunkManager = useRef(
     new ChunkManager(
@@ -390,8 +390,8 @@ const MapCanvas = () => {
     };
 
     // Render all visible cells
-    for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      for (let y = bounds.minY; y <= bounds.maxY; y++) {
+    for (let x = bounds.minX; x <= 2 * bounds.maxX; x++) {
+      for (let y = bounds.minY; y <= 2 * bounds.maxY; y++) {
         const { x: screenX, y: screenY } = isoToScreen(
           x,
           y,
@@ -414,7 +414,11 @@ const MapCanvas = () => {
           const image = imageLoader.current.getPointImage(pointType);
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          const isReachable = x >= 1 && y >= 1; // Cells with x<1 or y<1 are not reachable
+          const isReachable =
+            x >= 1 &&
+            y >= 1 &&
+            y <= mapBounds.y_limit - 1 &&
+            x <= mapBounds.x_limit - 1; // Cells with x<1 or y<1 are not reachable
           renderer.drawCell(
             screenX,
             screenY,
