@@ -53,28 +53,28 @@ export class CanvasRenderer {
       tileHeight
     );
 
-    // Draw borders only for positive cells (x≥0, y≥0)
+    // Draw borders only for cells at x=1 or y=1 (the starting edges)
     if (
       cellX !== undefined &&
       cellY !== undefined &&
-      cellX >= 0 &&
-      cellY >= 0
+      cellX >= 1 &&
+      cellY >= 1
     ) {
       this.ctx.strokeStyle = "blue";
       this.ctx.lineWidth = 6;
 
       const extension = 0.5; // Full cell boundary size
 
-      if (cellX === 0) {
-        // Draw left border for cells at x=0 (following the isometric grid)
+      if (cellX === 1) {
+        // Draw left border for cells at x=1 (following the isometric grid)
         this.ctx.beginPath();
         this.ctx.moveTo(-tileWidth * extension, 0); // Left point
         this.ctx.lineTo(0, -tileHeight * extension); // Top point
         this.ctx.stroke();
       }
 
-      if (cellY === 0) {
-        // Draw right border for cells at y=0 (following the isometric grid)
+      if (cellY === 1) {
+        // Draw right border for cells at y=1 (following the isometric grid)
         this.ctx.beginPath();
         this.ctx.moveTo(0, -tileHeight * extension); // Top point
         this.ctx.lineTo(tileWidth * extension, 0); // Right point
@@ -82,8 +82,8 @@ export class CanvasRenderer {
       }
     }
 
-    // Draw hover effect if cell is hovered
-    if (isHovered) {
+    // Draw hover effect if cell is hovered and reachable
+    if (isHovered && isReachable) {
       this.ctx.fillStyle = "rgba(254, 92, 92, 0.3)";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
@@ -94,7 +94,7 @@ export class CanvasRenderer {
       this.ctx.fill();
     }
 
-    // Draw dark overlay for unreachable areas
+    // Draw dark overlay for unreachable areas (x<1 or y<1)
     if (!isReachable) {
       this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
       this.ctx.beginPath();
@@ -105,7 +105,7 @@ export class CanvasRenderer {
       this.ctx.closePath();
       this.ctx.fill();
 
-      // Draw connecting red lines to neighbor edge centers
+      // Draw connecting lines to neighbor edge centers
       this.ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
       this.ctx.lineWidth = 2;
 

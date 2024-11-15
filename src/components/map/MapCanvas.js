@@ -71,10 +71,10 @@ const MapCanvas = () => {
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
-  // Function to check if a cell is within the valid map bounds
+  // Function to check if a cell is within the valid map bounds and enabled
   const isValidCell = useCallback((x, y) => {
     return (
-      x >= 0 && y >= 0 && x < MAX_MAP_SIZE.width && y < MAX_MAP_SIZE.height
+      x >= 1 && y >= 1 && x < MAX_MAP_SIZE.width && y < MAX_MAP_SIZE.height
     );
   }, []);
 
@@ -388,7 +388,7 @@ const MapCanvas = () => {
           const image = imageLoader.current.getPointImage(pointType);
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          const isReachable = x >= 0 && y >= 0; // Cells with negative coordinates are not reachable
+          const isReachable = x >= 1 && y >= 1; // Cells with x<1 or y<1 are not reachable
           renderer.drawCell(
             screenX,
             screenY,
@@ -396,8 +396,8 @@ const MapCanvas = () => {
             scale,
             isHovered,
             isReachable,
-            x, // Pass the cell's x coordinate
-            y // Pass the cell's y coordinate
+            x,
+            y
           );
         }
       }
