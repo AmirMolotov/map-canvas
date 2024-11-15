@@ -24,12 +24,9 @@ import {
 import { ChunkManager } from "./chunkManager";
 import { CanvasRenderer } from "./canvasRenderer";
 import { ImageLoader } from "./imageLoader";
+import { MAX_MAP_SIZE } from "./constants";
 
 // Define the maximum map dimensions
-const MAX_MAP_SIZE = {
-  width: 100,
-  height: 100,
-};
 
 const MapCanvas = () => {
   const {
