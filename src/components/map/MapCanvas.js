@@ -67,6 +67,25 @@ const MapCanvas = () => {
   const imageLoader = useRef(new ImageLoader());
   const canvasRenderer = useRef(null);
 
+  const handleRefetch = useCallback(() => {
+    if (!canvasRef.current) return;
+
+    const visibleChunks = chunkManager.current.getVisibleChunks(
+      screenToIso,
+      isDragging ? tempOffsetRef.current : offset,
+      scale,
+      canvasRef.current
+    );
+
+    // Clear the loaded chunks that are currently visible
+    visibleChunks.forEach((chunkKey) => {
+      chunkManager.current.loadedChunks.delete(chunkKey);
+    });
+
+    // Force a redraw which will trigger reloading of chunks
+    drawGrid();
+  }, [isDragging, offset, scale]);
+
   // Function to check if a cell is within the valid map bounds and enabled
   const isValidCell = useCallback(
     (x, y) => {
@@ -787,6 +806,23 @@ const MapCanvas = () => {
 
   return (
     <>
+      <button
+        onClick={handleRefetch}
+        style={{
+          position: "fixed",
+          top: "20px",
+          left: "20px",
+          padding: "8px 16px",
+          backgroundColor: "#4a4a4a",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+          zIndex: 1000,
+        }}
+      >
+        Refetch
+      </button>
       <canvas
         ref={canvasRef}
         style={{
