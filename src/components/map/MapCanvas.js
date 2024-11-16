@@ -751,7 +751,12 @@ const MapCanvas = () => {
         const touchDuration = touchEndTime - touchStartTime.current;
 
         if (touchDuration < 200) {
-          const cell = hoveredCell;
+          // Get the last touch position
+          const touch = e.changedTouches[0];
+          // Use getCellFromEvent like we do in mouse handling
+          const cell = getCellFromEvent(touch.clientX, touch.clientY);
+          // If it's a valid cell (within bounds) and within cell boundaries
+          // (handled by getCellFromEvent via isClickWithinCell)
           if (cell && isValidCell(cell.x, cell.y)) {
             openModal(cell);
           }
@@ -774,7 +779,7 @@ const MapCanvas = () => {
     [
       isDragging,
       isMobileDevice,
-      hoveredCell,
+      getCellFromEvent,
       isValidCell,
       correctOffset,
       openModal,
