@@ -811,7 +811,7 @@ const MapCanvas = () => {
         style={{
           position: "fixed",
           top: "20px",
-          left: "20px",
+          right: "20px",
           padding: "8px 16px",
           backgroundColor: "#4a4a4a",
           color: "white",
