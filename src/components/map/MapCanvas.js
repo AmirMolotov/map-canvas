@@ -77,8 +77,38 @@ const MapCanvas = () => {
       canvasRef.current
     );
 
-    // Clear the loaded chunks that are currently visible
+    // Clear only the visible chunks' data
     visibleChunks.forEach((chunkKey) => {
+      const [chunkX, chunkY] = chunkKey.split(",").map(Number);
+      const startX = chunkX * CHUNK_SIZE;
+      const startY = chunkY * CHUNK_SIZE;
+      const endX = startX + CHUNK_SIZE;
+      const endY = startY + CHUNK_SIZE;
+
+      // Remove points in this chunk
+      chunkManager.current.points = chunkManager.current.points.filter(
+        (point) => {
+          const isInChunk =
+            point.x >= startX &&
+            point.x < endX &&
+            point.y >= startY &&
+            point.y < endY;
+          if (isInChunk) {
+            // Also remove from respective data maps
+            const key = `${point.x},${point.y}`;
+            if (point.type === "user") {
+              chunkManager.current.usersData.delete(key);
+            } else if (point.type === "lock") {
+              chunkManager.current.locksData.delete(key);
+            } else if (point.type === "mine") {
+              chunkManager.current.minesData.delete(key);
+            }
+          }
+          return !isInChunk;
+        }
+      );
+
+      // Remove chunk from loaded chunks
       chunkManager.current.loadedChunks.delete(chunkKey);
     });
 

@@ -27,8 +27,8 @@ export class ChunkManager {
   async loadChunkData(chunkX, chunkY, onLoadingStateChange) {
     const chunkKey = this.getChunkKey(chunkX, chunkY);
 
-    // Skip if chunk already loaded or is currently loading
-    if (this.loadedChunks.has(chunkKey) || this.loadingChunks.has(chunkKey)) {
+    // Skip if chunk is currently loading
+    if (this.loadingChunks.has(chunkKey)) {
       return;
     }
 
@@ -112,6 +112,22 @@ export class ChunkManager {
           });
         }
 
+        // Remove any existing points in this chunk before adding new ones
+        const startX = chunkX * CHUNK_SIZE;
+        const startY = chunkY * CHUNK_SIZE;
+        const endX = startX + CHUNK_SIZE;
+        const endY = startY + CHUNK_SIZE;
+
+        this.points = this.points.filter((point) => {
+          const isInChunk =
+            point.x >= startX &&
+            point.x < endX &&
+            point.y >= startY &&
+            point.y < endY;
+          return !isInChunk;
+        });
+
+        // Add the new points
         this.points = [...this.points, ...processedPoints];
         this.loadedChunks.add(chunkKey);
       }
