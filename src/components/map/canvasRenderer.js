@@ -68,8 +68,14 @@ export class CanvasRenderer {
       this.ctx.fill();
     }
 
-    // Draw dark overlay for unreachable areas (x<1 or y<1)
-    if (!isReachable) {
+    // Draw dark overlay for unreachable areas (outside valid bounds)
+    if (
+      !isReachable ||
+      cellX > mapBounds.x_limit ||
+      cellY > mapBounds.y_limit ||
+      cellX < 1 ||
+      cellY < 1
+    ) {
       this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
       this.ctx.beginPath();
       this.ctx.moveTo(0, -tileHeight * 0.3); // Top point
@@ -112,46 +118,64 @@ export class CanvasRenderer {
       this.ctx.stroke();
     }
 
-    // Draw borders only for cells at x=1 or y=1 (the starting edges)
+    // Draw grid boundaries
     if (
       cellX !== undefined &&
       cellY !== undefined &&
       cellX >= 1 &&
-      cellY >= 1
+      cellY >= 1 &&
+      cellX <= mapBounds.x_limit &&
+      cellY <= mapBounds.y_limit
     ) {
-      this.ctx.strokeStyle = "blue";
-      this.ctx.lineWidth = 6;
-
       const extension = 0.5; // Full cell boundary size
 
-      if (cellX === mapBounds.x_limit - 1 && cellY < mapBounds.y_limit) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, tileHeight * extension); // Bottom point
-        this.ctx.lineTo(tileWidth * extension, 0); // Right point
-        this.ctx.stroke();
-      }
+      // Draw borders for grid boundaries
+      this.ctx.strokeStyle = "#4a90e2"; // A nice blue color for the boundaries
+      this.ctx.lineWidth = 4;
 
-      if (cellY === mapBounds.y_limit - 1 && cellX < mapBounds.x_limit) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
-        this.ctx.lineTo(0, tileHeight * extension); // Bottom point
-        this.ctx.stroke();
-      }
-
+      // Draw border for x=1 (left boundary)
       if (cellX === 1) {
-        // Draw left border for cells at x=1 (following the isometric grid)
         this.ctx.beginPath();
-        this.ctx.moveTo(-tileWidth * extension, 0); // Left point
-        this.ctx.lineTo(0, -tileHeight * extension); // Top point
+        this.ctx.moveTo(-tileWidth * extension, 0);
+        this.ctx.lineTo(0, -tileHeight * extension);
         this.ctx.stroke();
       }
 
+      // Draw border for y=1 (top boundary)
       if (cellY === 1) {
-        // Draw right border for cells at y=1 (following the isometric grid)
         this.ctx.beginPath();
-        this.ctx.moveTo(0, -tileHeight * extension); // Top point
-        this.ctx.lineTo(tileWidth * extension, 0); // Right point
+        this.ctx.moveTo(0, -tileHeight * extension);
+        this.ctx.lineTo(tileWidth * extension, 0);
         this.ctx.stroke();
+      }
+
+      // Draw border for x=x_limit (right boundary)
+      if (cellX === mapBounds.x_limit) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(tileWidth * extension, 0);
+        this.ctx.lineTo(0, tileHeight * extension);
+        this.ctx.stroke();
+      }
+
+      // Draw border for y=y_limit (bottom boundary)
+      if (cellY === mapBounds.y_limit) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, tileHeight * extension);
+        this.ctx.lineTo(-tileWidth * extension, 0);
+        this.ctx.stroke();
+      }
+
+      // Draw corner indicators
+      if (
+        (cellX === 1 && cellY === 1) ||
+        (cellX === 1 && cellY === mapBounds.y_limit) ||
+        (cellX === mapBounds.x_limit && cellY === 1) ||
+        (cellX === mapBounds.x_limit && cellY === mapBounds.y_limit)
+      ) {
+        this.ctx.fillStyle = "#4a90e2";
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        this.ctx.fill();
       }
     }
 

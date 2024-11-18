@@ -87,7 +87,9 @@ const MapCanvas = () => {
   // Function to check if a cell is within the valid map bounds and enabled
   const isValidCell = useCallback(
     (x, y) => {
-      return x >= 1 && y >= 1 && x < mapBounds.x_limit && y < mapBounds.y_limit;
+      return (
+        x >= 1 && y >= 1 && x <= mapBounds.x_limit && y <= mapBounds.y_limit
+      );
     },
     [mapBounds]
   );
@@ -152,9 +154,9 @@ const MapCanvas = () => {
         newOffset.x += canvas.width / 2 - screenX;
       }
       // Handle X coordinates beyond max width
-      else if (centerX >= mapBounds.x_limit) {
+      else if (centerX > mapBounds.x_limit) {
         const { x: screenX } = isoToScreen(
-          mapBounds.x_limit - 1,
+          mapBounds.x_limit,
           centerY,
           currentOffset,
           scale,
@@ -177,10 +179,10 @@ const MapCanvas = () => {
         newOffset.y += canvas.height / 2 - screenY;
       }
       // Handle Y coordinates beyond max height
-      else if (centerY >= mapBounds.y_limit) {
+      else if (centerY > mapBounds.y_limit) {
         const { y: screenY } = isoToScreen(
           centerX,
-          mapBounds.y_limit - 1,
+          mapBounds.y_limit,
           currentOffset,
           scale,
           canvas.width,
@@ -392,19 +394,19 @@ const MapCanvas = () => {
     const bounds = {
       minX: Math.floor(Math.min(...corners.map((c) => c.x))),
       maxX: Math.min(
-        mapBounds.x_limit - 1,
+        mapBounds.x_limit,
         Math.ceil(Math.max(...corners.map((c) => c.x)))
       ),
       minY: Math.floor(Math.min(...corners.map((c) => c.y))),
       maxY: Math.min(
-        mapBounds.y_limit - 1,
+        mapBounds.y_limit,
         Math.ceil(Math.max(...corners.map((c) => c.y)))
       ),
     };
 
     // Render all visible cells
-    for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      for (let y = bounds.minY; y <= bounds.maxY; y++) {
+    for (let x = bounds.minX; x <= bounds.maxX * 2; x++) {
+      for (let y = bounds.minY; y <= bounds.maxY * 2; y++) {
         const { x: screenX, y: screenY } = isoToScreen(
           x,
           y,
@@ -427,11 +429,7 @@ const MapCanvas = () => {
           const image = imageLoader.current.getPointImage(pointType);
           const isHovered =
             hoveredCell && hoveredCell.x === x && hoveredCell.y === y;
-          const isReachable =
-            x >= 1 &&
-            y >= 1 &&
-            y <= mapBounds.y_limit - 1 &&
-            x <= mapBounds.x_limit - 1;
+          const isReachable = isValidCell(x, y);
           renderer.drawCell(
             screenX,
             screenY,
@@ -454,7 +452,15 @@ const MapCanvas = () => {
       visibleChunks.length,
       isLoadingChunk
     );
-  }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapBounds]);
+  }, [
+    scale,
+    offset,
+    isDragging,
+    hoveredCell,
+    isLoadingChunk,
+    mapBounds,
+    isValidCell,
+  ]);
 
   const handleMouseDown = useCallback(
     (e) => {
