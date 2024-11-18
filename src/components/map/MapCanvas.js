@@ -340,6 +340,7 @@ const MapCanvas = () => {
 
     renderer.drawBackground();
 
+    // Get visible chunks - already filtered for valid chunks
     const visibleChunks = chunkManager.current.getVisibleChunks(
       screenToIso,
       currentOffset,
@@ -347,15 +348,10 @@ const MapCanvas = () => {
       canvas
     );
 
-    // Filter out chunks with negative coordinates
-    const validChunks = visibleChunks.filter((chunkKey) => {
-      const [chunkX, chunkY] = chunkKey.split(",").map(Number);
-      return chunkX >= 0 && chunkY >= 0;
-    });
+    chunkManager.current.clearNonVisibleChunks(visibleChunks);
 
-    chunkManager.current.clearNonVisibleChunks(validChunks);
-
-    validChunks.forEach((chunkKey) => {
+    // Load each visible chunk
+    visibleChunks.forEach((chunkKey) => {
       const [chunkX, chunkY] = chunkKey.split(",").map(Number);
       chunkManager.current.loadChunkData(chunkX, chunkY, setIsLoadingChunk);
     });
@@ -407,8 +403,8 @@ const MapCanvas = () => {
     };
 
     // Render all visible cells
-    for (let x = bounds.minX; x <= 2 * bounds.maxX; x++) {
-      for (let y = bounds.minY; y <= 2 * bounds.maxY; y++) {
+    for (let x = bounds.minX; x <= bounds.maxX; x++) {
+      for (let y = bounds.minY; y <= bounds.maxY; y++) {
         const { x: screenX, y: screenY } = isoToScreen(
           x,
           y,
@@ -435,7 +431,7 @@ const MapCanvas = () => {
             x >= 1 &&
             y >= 1 &&
             y <= mapBounds.y_limit - 1 &&
-            x <= mapBounds.x_limit - 1; // Cells with x<1 or y<1 are not reachable
+            x <= mapBounds.x_limit - 1;
           renderer.drawCell(
             screenX,
             screenY,
@@ -455,7 +451,7 @@ const MapCanvas = () => {
     renderer.drawBounds(bounds);
     renderer.drawChunkInfo(
       chunkManager.current.getLoadedChunksCount(),
-      validChunks.length,
+      visibleChunks.length,
       isLoadingChunk
     );
   }, [scale, offset, isDragging, hoveredCell, isLoadingChunk, mapBounds]);

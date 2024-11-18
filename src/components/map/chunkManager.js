@@ -18,7 +18,7 @@ export class ChunkManager {
     this.setClickedLockData = setClickedLockData;
     this.setClickedMineData = setClickedMineData;
     this.setClickedEmptyCell = setClickedEmptyCell;
-    this.chunksCache = new Map(); // Add cache for chunk data
+    this.chunksCache = new Map();
   }
 
   getChunkKey(chunkX, chunkY) {
@@ -98,6 +98,9 @@ export class ChunkManager {
     onLoadingStateChange,
     forceRefetch = false
   ) {
+    // Skip invalid chunks
+    if (chunkX < 0 || chunkY < 0) return;
+
     const chunkKey = this.getChunkKey(chunkX, chunkY);
 
     // Skip if chunk is currently loading
@@ -257,32 +260,24 @@ export class ChunkManager {
       canvas.height
     );
 
-    // Calculate the width and height of the viewport in grid coordinates
-    const viewportWidth = Math.abs(topRight.x - topLeft.x);
-    const viewportHeight = Math.abs(bottomLeft.y - topLeft.y);
-
-    // Calculate the number of chunks needed to cover the viewport
-    const chunksX = Math.ceil(viewportWidth / CHUNK_SIZE) + 2; // Add 2 for padding
-    const chunksY = Math.ceil(viewportHeight / CHUNK_SIZE) + 2; // Add 2 for padding
-
-    // Calculate the center chunk
-    const centerChunkX = Math.floor((topLeft.x + topRight.x) / 2 / CHUNK_SIZE);
-    const centerChunkY = Math.floor(
-      (topLeft.y + bottomLeft.y) / 2 / CHUNK_SIZE
+    // Find the min and max chunk coordinates that are actually visible
+    const minChunkX = Math.floor(
+      Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x) / CHUNK_SIZE
+    );
+    const maxChunkX = Math.floor(
+      Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x) / CHUNK_SIZE
+    );
+    const minChunkY = Math.floor(
+      Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y) / CHUNK_SIZE
+    );
+    const maxChunkY = Math.floor(
+      Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y) / CHUNK_SIZE
     );
 
-    // Add visible chunks
+    // Add only the chunks that are actually visible and valid (non-negative)
     const visibleChunks = new Set();
-    for (
-      let x = centerChunkX - Math.floor(chunksX / 2);
-      x <= centerChunkX + Math.floor(chunksX / 2);
-      x++
-    ) {
-      for (
-        let y = centerChunkY - Math.floor(chunksY / 2);
-        y <= centerChunkY + Math.floor(chunksY / 2);
-        y++
-      ) {
+    for (let x = Math.max(0, minChunkX); x <= maxChunkX; x++) {
+      for (let y = Math.max(0, minChunkY); y <= maxChunkY; y++) {
         visibleChunks.add(this.getChunkKey(x, y));
       }
     }
